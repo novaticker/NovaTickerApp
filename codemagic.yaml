@@ -6,6 +6,7 @@ workflows:
       vars:
         FIREBASE_URL: "https://novaticker-default-rtdb.firebaseio.com/"
     scripts:
-      - echo "🛠️ APK 빌드 준비 중입니다."
+      - echo "🔧 APK 빌드 준비 중입니다."
+      - ./gradlew assembleDebug
     artifacts:
-      - build/app/outputs/flutter-apk/app-debug.apk
+      - app/build/outputs/apk/debug/app-debug.apk
