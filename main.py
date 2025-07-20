@@ -32,8 +32,11 @@ def index():
 
 def fetch_news(query):
     url = f'https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&q={query}&country=us&language=en&category=business'
+    print(f"[DEBUG] {query} 뉴스 요청 URL: {url}")
+    
     try:
         res = requests.get(url).json()
+        print(f"[DEBUG] 응답 결과: {res}")
     except:
         return []
 
