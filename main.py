@@ -6,6 +6,7 @@ import json
 import os
 import requests
 from googletrans import Translator
+import pytz
 
 app = Flask(__name__, template_folder='templates')
 CORS(app)
@@ -14,6 +15,8 @@ NEWS_API_KEY = 'pub_af7cbc0a338a4f64aeba8b044a544dca'
 NEWS_FILE = 'positive_news.json'
 SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC', 'EXPO']
 translator = Translator()
+
+KST = pytz.timezone('Asia/Seoul')
 
 @app.route('/')
 def index():
@@ -24,13 +27,16 @@ def fetch_news(query):
     res = requests.get(url).json()
     articles = res.get('results', [])
     filtered = []
+    now_kst = datetime.now(KST).strftime('%H:%M')
 
     for a in articles:
         title = a.get('title', '')
         if not any(x in title.lower() for x in ['bitcoin', 'ethereum', 'crypto']):
             filtered.append({
                 'title': translator.translate(title, dest='ko').text,
-                'link': a.get('link', '')
+                'link': a.get('link', ''),
+                'symbol': query,
+                'time': now_kst
             })
 
     return filtered
@@ -98,7 +104,7 @@ def get_related_news(symbol):
         data = json.load(f)
     today_news = data.get(today, [])
     for item in today_news:
-        if symbol.lower() in item['title'].lower():
+        if symbol.lower() in item.get('title', '').lower():
             return item
     return None
 
