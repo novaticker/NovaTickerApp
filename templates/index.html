@@ -1,151 +1,124 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>NovaTicker 리치</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      background: #111;
-      color: white;
-      text-align: center;
-    }
-    h1 {
-      margin-top: 20px;
-      font-size: 1.8em;
-    }
-    .tab-button {
-      display: inline-block;
-      padding: 10px 16px;
-      margin: 5px;
-      border-radius: 10px;
-      background-color: #444;
-      color: white;
-      font-weight: bold;
-      border: none;
-    }
-    .tab-button.active {
-      background-color: #1abc9c;
-    }
-    .section {
-      display: none;
-      padding: 10px;
-    }
-    .visible {
-      display: block;
-    }
-    .box {
-      background-color: #222;
-      padding: 12px;
-      margin: 10px auto;
-      max-width: 95%;
-      border-radius: 10px;
-      text-align: left;
-    }
-    .ticker {
-      font-weight: bold;
-      color: #f1c40f;
-    }
-    .percent {
-      color: #e74c3c;
-      font-weight: bold;
-    }
-    a {
-      color: #1abc9c;
-      text-decoration: none;
-    }
-    .updated {
-      font-size: 0.9em;
-      color: #bbb;
-      margin-bottom: 10px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>NovaTicker 리치</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { background-color: #111; color: white; font-family: sans-serif; margin: 0; padding: 0; }
+        h1 { text-align: center; margin-top: 20px; }
+        .tabs, .filters { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 10px; }
+        .tab, .filter-btn {
+            padding: 10px 18px; border-radius: 10px; border: none; font-weight: bold;
+            cursor: pointer; font-size: 16px; transition: background-color 0.3s;
+        }
+        .tab.active, .filter-btn.active { background-color: #1dd1a1; color: #000; }
+        .tab:not(.active), .filter-btn:not(.active) { background-color: #444; color: white; }
+        .section { display: none; padding: 10px; }
+        .section.active { display: block; }
+        .news-block {
+            background: #222; margin: 8px auto; max-width: 95%;
+            padding: 12px 16px; border-radius: 10px; line-height: 1.4;
+        }
+        .updated { text-align: center; font-size: 14px; margin: 8px; color: #ccc; }
+        .date-title { text-align: center; margin-top: 10px; font-size: 18px; font-weight: bold; }
+    </style>
 </head>
 <body>
-  <h1>📊 NovaTicker 리치</h1>
-  <button class="tab-button active" onclick="showTab('rising')">📈 급등 종목</button>
-  <button class="tab-button" onclick="showTab('warning')">⚠️ 급등 조짐</button>
-  <button class="tab-button" onclick="showTab('news')">📰 호재 뉴스</button>
 
-  <div class="updated" id="last-update">🔄 마지막 갱신: 로딩 중...</div>
+<h1>📊 NovaTicker 리치</h1>
 
-  <div id="rising" class="section visible"></div>
-  <div id="warning" class="section"></div>
-  <div id="news" class="section"></div>
+<div class="tabs">
+    <button class="tab active" onclick="showSection('spike')">📈 급등 종목</button>
+    <button class="tab" onclick="showSection('warning')">⚠️ 급등 조짐</button>
+    <button class="tab" onclick="showSection('news')">📰 호재 뉴스</button>
+</div>
 
-  <script>
-    function showTab(tab) {
-      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('visible'));
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      document.getElementById(tab).classList.add('visible');
-      event.target.classList.add('active');
-    }
+<div class="updated">🔁 마지막 갱신: <span id="updated-time">불러오는 중...</span></div>
 
-    async function loadData() {
-      try {
-        const r = await fetch('/rising_stocks.json');
-        const risingData = await r.json();
-        document.getElementById('last-update').textContent = '🔄 마지막 갱신: ' + risingData.updated;
+<!-- 필터 버튼 -->
+<div class="filters">
+    <button class="filter-btn" onclick="filterNews('fda')">🧪 FDA/임상</button>
+    <button class="filter-btn" onclick="filterNews('bio')">🧬 바이오</button>
+    <button class="filter-btn" onclick="filterNews('rebound')">📉 급락 후 반등</button>
+    <button class="filter-btn" onclick="filterNews('issue')">💥 급등 이슈</button>
+    <button class="filter-btn" onclick="filterNews('all')">❌ 초기화</button>
+</div>
 
-        const risingDiv = document.getElementById('rising');
-        const warningDiv = document.getElementById('warning');
-        risingDiv.innerHTML = "";
-        warningDiv.innerHTML = "";
+<!-- 급등 종목 -->
+<div id="spike" class="section active">
+    <div id="spike-list"></div>
+</div>
 
-        for (let item of risingData.rising) {
-          const el = document.createElement('div');
-          el.className = 'box';
-          el.innerHTML = `<div class="ticker">${item.ticker}</div>
-            🚀 <span class="percent">${item.percent}%</span> / 📊 ${item.volume_ratio}배
-            ${item.news.map(n => `<br>📰 <a href="${n.link}" target="_blank">${n.title}</a>`).join('')}`;
-          risingDiv.appendChild(el);
+<!-- 급등 조짐 -->
+<div id="warning" class="section">
+    <div id="warning-list"></div>
+</div>
+
+<!-- 호재 뉴스 -->
+<div id="news" class="section">
+    <div id="news-list"></div>
+</div>
+
+<script>
+const keywords = {
+    fda: ["fda", "임상", "clinical", "phase 1", "phase 2", "phase 3"],
+    bio: ["bio", "therapeutics", "oncology", "drug"],
+    rebound: ["rebound", "bounce back", "strong recovery"],
+    issue: ["breakout", "explosive", "jumps", "spikes"]
+};
+
+function showSection(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.target.classList.add('active');
+}
+
+function filterNews(type) {
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const blocks = document.querySelectorAll('#news-list .news-block');
+    blocks.forEach(block => {
+        if (type === 'all') {
+            block.style.display = '';
+        } else {
+            const content = block.textContent.toLowerCase();
+            const matched = keywords[type].some(word => content.includes(word));
+            block.style.display = matched ? '' : 'none';
         }
+    });
+}
 
-        for (let item of risingData.warning) {
-          const el = document.createElement('div');
-          el.className = 'box';
-          el.innerHTML = `<div class="ticker">${item.ticker}</div>
-            ⚠️ 거래량 ${item.volume_ratio}배 / 변동률: <span class="percent">${item.percent}%</span>`;
-          warningDiv.appendChild(el);
-        }
-      } catch (e) {
-        console.error("데이터 로딩 오류:", e);
-      }
-    }
+async function loadData() {
+    const res = await fetch('/data.json');
+    const data = await res.json();
+    const { updated, spike, warning, news } = data;
+    document.getElementById('updated-time').textContent = updated;
 
-    async function loadNews() {
-      try {
-        const res = await fetch('/positive_news.json');
-        const data = await res.json();
-        const newsDiv = document.getElementById('news');
-        newsDiv.innerHTML = "";
+    renderList('spike-list', spike);
+    renderList('warning-list', warning);
+    renderNewsList(news);
+}
 
-        const dates = Object.keys(data).sort().reverse();
-        for (let date of dates) {
-          const title = document.createElement('h3');
-          title.textContent = `🗓️ ${date}`;
-          title.style.marginTop = '20px';
-          newsDiv.appendChild(title);
-          for (let item of data[date]) {
-            const box = document.createElement('div');
-            box.className = 'box';
-            box.innerHTML = `📰 <a href="${item.link}" target="_blank">${item.title}</a>`;
-            newsDiv.appendChild(box);
-          }
-        }
-      } catch (e) {
-        console.error("뉴스 로딩 오류:", e);
-      }
-    }
+function renderList(containerId, list) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = list.length === 0 ? "<div class='news-block'>⏳ 준비 중...</div>" : list.map(s => `<div class='news-block'>${s}</div>`).join('');
+}
 
-    loadData();
-    loadNews();
-    setInterval(() => {
-      loadData();
-      loadNews();
-    }, 60000);
-  </script>
+function renderNewsList(newsData) {
+    const container = document.getElementById('news-list');
+    container.innerHTML = '';
+    Object.keys(newsData).sort().reverse().forEach(date => {
+        const title = `<div class="date-title">📅 ${date}</div>`;
+        const items = newsData[date].map(item => `<div class='news-block'>📰 ${item.title}</div>`).join('');
+        container.innerHTML += title + items;
+    });
+}
+
+loadData();
+</script>
+
 </body>
 </html>
