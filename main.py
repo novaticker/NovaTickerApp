@@ -1,4 +1,3 @@
-
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 import yfinance as yf
@@ -62,19 +61,20 @@ def is_positive_news(news):
 def fetch_news(query, api_key):
     url = f'https://newsdata.io/api/1/news?apikey={api_key}&q={query}&country=us&language=en&category=business'
     print(f"[DEBUG] {query} 뉴스 요청 URL: {url}")
-
     try:
-        res = requests.get(url).json()
-    except:
+        res = requests.get(url, timeout=10)
+        res.raise_for_status()
+        data = res.json()
+    except Exception as e:
+        print(f"[ERROR] 뉴스 요청 실패: {e}")
         return []
 
-    articles = res.get('results', [])
+    articles = data.get('results', [])
     filtered = []
 
     for a in articles:
         if not isinstance(a, dict):
             continue
-
         title = a.get('title', '')
         link = a.get('link', '')
         if not title or not link or 'example.com' in link:
@@ -91,7 +91,8 @@ def fetch_news(query, api_key):
 
         try:
             translated = translator.translate(title, dest='ko').text
-        except:
+        except Exception as e:
+            print(f"[WARN] 번역 실패: {e}")
             translated = title
 
         matched_symbol = ''
@@ -165,7 +166,6 @@ def analyze_stocks():
             change = (price_now - price_prev) / price_prev * 100
 
             item = {'symbol': sym, 'volume': int(vol_now), 'change': round(change, 2)}
-
             news = get_related_news(sym)
             if news:
                 item['news'] = news
@@ -176,7 +176,7 @@ def analyze_stocks():
                 elif change >= 1:
                     signal.append(item)
         except Exception as e:
-            print(f"{sym} 분석 오류:", e)
+            print(f"{sym} 분석 오류: {e}")
     return rising, signal
 
 def get_related_news(symbol):
@@ -232,5 +232,4 @@ def trigger_update_news():
     return '뉴스 수집 완료 ✅'
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
-```
+    app.run(host='0.0.0.0', port=8080, debug=False)
