@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 import yfinance as yf
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 import os
 import requests
@@ -213,7 +213,8 @@ def get_related_news(symbol):
         data = json.load(f)
     today_news = data.get(today, [])
     for item in today_news:
-        if symbol.lower() in item.get('title', '').lower():
+        news_symbol = item.get('symbol', '').lower()
+        if symbol.lower() in item.get('title', '').lower() or symbol.lower() == news_symbol:
             return item
     return None
 
