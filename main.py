@@ -13,7 +13,7 @@ CORS(app)
 
 NEWS_API_KEY = 'pub_af7cbc0a338a4f64aeba8b044a544dca'
 NEWS_FILE = 'positive_news.json'
-SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC', 'EXPO']
+SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC']  # ❌ 'EXPO' 제거
 translator = Translator()
 KST = pytz.timezone('Asia/Seoul')
 
@@ -30,16 +30,12 @@ def fetch_news(query):
     for a in articles:
         title = a.get('title', '')
         link = a.get('link', '')
-        
-        # ❗가짜 링크 필터링
+
         if not link or 'example.com' in link:
             continue
-        
-        # ❗암호화폐 관련 뉴스 제외
         if any(x in title.lower() for x in ['bitcoin', 'ethereum', 'crypto']):
             continue
 
-        # 시간 변환 처리
         pub_utc = a.get('pubDate')
         if pub_utc:
             try:
@@ -53,7 +49,7 @@ def fetch_news(query):
         filtered.append({
             'title': translator.translate(title, dest='ko').text,
             'link': link,
-            'symbol': query,  # 실제 티커 그대로 포함
+            'symbol': query,
             'time': kst_dt.strftime("%H:%M"),
             'date': kst_dt.strftime("%Y-%m-%d"),
             'timestamp': kst_dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -81,11 +77,9 @@ def update_news():
                 data[date].append(item)
                 all_titles.add(item['title'])
 
-    # 날짜별 정렬
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
-    # 3일 초과된 뉴스 삭제
     cutoff = datetime.now(KST).replace(tzinfo=None) - timedelta(days=3)
     data = {
         date: items for date, items in data.items()
