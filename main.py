@@ -14,7 +14,6 @@ CORS(app)
 NEWS_API_KEY = 'pub_af7cbc0a338a4f64aeba8b044a544dca'
 NEWS_FILE = 'positive_news.json'
 
-# 뉴스 수집용 키워드
 SYMBOLS = [
     'nasdaq', 'fda', 'clinical trial', 'phase 1', 'phase 2', 'phase 3',
     'merger', 'approval', 'biotech', 'pharma', 'listing',
@@ -22,7 +21,6 @@ SYMBOLS = [
     '암치료', '신약 승인', '신약 성공', '상장 승인', '임상 성공'
 ]
 
-# 실제 주식 ticker (yfinance용)
 STOCK_SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC']
 
 translator = Translator()
@@ -49,7 +47,7 @@ def fetch_news(query):
         title = a.get('title', '')
         link = a.get('link', '')
 
-        if not link or 'example.com' in link:
+        if not title or not link or 'example.com' in link:
             continue
 
         pub_utc = a.get('pubDate')
@@ -87,6 +85,10 @@ def update_news():
         data = {}
 
     all_keys = set()
+    for date_items in data.values():
+        for item in date_items:
+            all_keys.add(item['title'] + item['link'])
+
     for sym in SYMBOLS:
         news_items = fetch_news(sym)
         for item in news_items:
