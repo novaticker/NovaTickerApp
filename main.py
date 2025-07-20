@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string
+from flask import Flask, render_template, send_from_directory, jsonify
 import yfinance as yf
 from datetime import datetime, timedelta
 import requests
@@ -7,159 +7,201 @@ import os
 
 app = Flask(__name__)
 
-# ✅ 감시 기준 설정
-PRICE_THRESHOLD = 2.0  # 상승률 %
-VOLUME_MULTIPLIER = 5.0  # 거래량 증가 배수
+# ✅ 설정
+PRICE_THRESHOLD = 3.0
+VOLUME_MULTIPLIER = 3.0
 NEWS_API_KEY = "pub_af7cbc0a338a4f64aeba8b044a544dca"
 
-# ✅ 감시할 티커 리스트
-TICKERS = ["IXHL", "STEM", "TELL", "MINK", "INNX", "BNRG", "ABVE", "ZAPP", "BNL", "ADTX"]
+TICKERS = ["IXHL", "STEM", "TELL", "CRSP", "APLD", "INPX", "CYCC", "BLAZ", "LMFA", "CW", "SAIC", "EXPO"]
 
-# ✅ 필터링 키워드 (단타 가능한 강한 뉴스만, 필터 완화)
 FILTER_KEYWORDS = [
-    "fda", "approval", "phase 1", "phase 2", "phase 3", "clinical trial", "study results",
-    "breakthrough", "merger", "acquisition", "surge", "spike", "explode", "skyrock", "positive results",
-    "strategic partnership", "expand", "collaboration", "contract award", "granted", "received funding"
+    "fda", "biotech", "pharma", "clinical", "therapeutics", "healthcare",
+    "phase 1", "phase 2", "phase 3", "clinical trial", "clinical data",
+    "study results", "positive data", "successful trial", "efficacy", "safety profile",
+    "crypto", "coin", "blockchain", "web3", "nft", "ai", "artificial intelligence"
 ]
 
-NEWS_FILE = "positive_news.json"
-
-def load_news():
-    if os.path.exists(NEWS_FILE):
-        with open(NEWS_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-def save_news(news_data):
-    with open(NEWS_FILE, "w") as f:
-        json.dump(news_data, f, indent=2)
-
-def clean_old_news(news_data):
-    today = datetime.utcnow().date()
-    return {date: items for date, items in news_data.items()
-            if (today - datetime.strptime(date, "%Y-%m-%d").date()).days <= 2}
-
-def get_filtered_news(ticker):
-    url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&q={ticker}&language=en&country=us"
-    response = requests.get(url)
-    if response.status_code == 200:
-        articles = response.json().get("results", [])
+# ✅ 뉴스 수집
+def fetch_news(ticker):
+    url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&q={ticker}&country=us&language=en&category=business"
+    try:
+        res = requests.get(url)
+        articles = res.json().get("results", [])
+        seen = set()
         filtered = []
-        for article in articles:
-            title = article.get("title", "").lower()
-            link = article.get("link", "")
-            if any(keyword in title for keyword in FILTER_KEYWORDS):
-                filtered.append({"title": article.get("title"), "link": link})
+        for a in articles:
+            title = a.get("title", "").strip()
+            link = a.get("link", "").strip()
+            lowered = title.lower()
+            if not title or not link:
+                continue
+            if not any(kw in lowered for kw in FILTER_KEYWORDS):
+                continue
+            key = title + link
+            if key in seen:
+                continue
+            seen.add(key)
+            filtered.append({
+                "title": title,
+                "link": link,
+                "keyword": ticker
+            })
+            if len(filtered) >= 3:
+                break
         return filtered
-    return []
+    except:
+        return []
 
-@app.route("/")
-def index():
-    now = datetime.utcnow()
-    matched_stocks = []
+# ✅ 번역
+def translate(text):
+    try:
+        url = "https://translate.googleapis.com/translate_a/single"
+        params = {
+            "client": "gtx",
+            "sl": "en",
+            "tl": "ko",
+            "dt": "t",
+            "q": text
+        }
+        res = requests.get(url, params=params)
+        return res.json()[0][0][0]
+    except:
+        return text
+
+# ✅ 급등 + 조짐 종목 분석
+def analyze_stocks():
+    rising = []
+    warning = []
     for ticker in TICKERS:
-        data = yf.Ticker(ticker)
-        hist = data.history(period="2d", interval="1m")
-        if len(hist) < 10:
-            continue
-        latest = hist.iloc[-1]
-        earlier = hist.iloc[0]
-        price_change = ((latest["Close"] - earlier["Close"]) / earlier["Close"]) * 100
-        volume_change = latest["Volume"] / (hist["Volume"].mean() + 1)
+        try:
+            df = yf.download(ticker, period="1d", interval="1m", progress=False)
+            if df.empty or len(df) < 10:
+                continue
 
-        if price_change >= PRICE_THRESHOLD and volume_change >= VOLUME_MULTIPLIER:
-            matched_stocks.append({
+            recent_prices = df["Close"][-3:]
+            price_change = (recent_prices[-1] - recent_prices[0]) / recent_prices[0] * 100
+            volume_now = df["Volume"][-1]
+            volume_prev = df["Volume"][-10:-1].mean()
+            volume_ratio = volume_now / volume_prev if volume_prev > 0 else 0
+
+            data = {
                 "ticker": ticker,
-                "price_change": round(price_change, 2),
-                "volume_change": round(volume_change, 2),
-                "news": get_filtered_news(ticker)
+                "open": round(df["Open"][0], 2),
+                "latest": round(recent_prices[-1], 2),
+                "percent": round(price_change, 2),
+                "volume_now": int(volume_now),
+                "volume_prev": int(volume_prev),
+                "volume_ratio": round(volume_ratio, 2),
+                "news": [],
+                "has_news": False
+            }
+
+            if price_change >= PRICE_THRESHOLD and volume_ratio >= VOLUME_MULTIPLIER:
+                news = fetch_news(ticker)
+                data["news"] = news
+                data["has_news"] = bool(news)
+                rising.append(data)
+            elif volume_ratio >= VOLUME_MULTIPLIER:
+                warning.append(data)
+
+        except Exception as e:
+            print(f"{ticker} 분석 오류: {e}")
+            continue
+
+    return rising, warning
+
+# ✅ 호재 뉴스 수집
+def fetch_positive_news():
+    url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&country=us&language=en&category=business"
+    try:
+        res = requests.get(url)
+        articles = res.json().get("results", [])[:10]
+        news = []
+        seen_keys = set()
+
+        for a in articles:
+            title = a.get("title", "").strip()
+            link = a.get("link", "").strip()
+            lowered = title.lower()
+            if not title or not link:
+                continue
+            if not any(kw in lowered for kw in FILTER_KEYWORDS):
+                continue
+            key = title + link
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            translated = translate(title)
+            news.append({
+                "title": translated,
+                "link": link,
+                "keyword": a.get("creator", [""])[0] if a.get("creator") else ""
             })
 
-    news_data = load_news()
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now().strftime("%Y-%m-%d")
+        filepath = "positive_news.json"
+        if os.path.exists(filepath):
+            with open(filepath, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+        else:
+            existing = {}
+        if today not in existing:
+            existing[today] = []
 
-    if today not in news_data:
-        news_data[today] = []
+        existing_keys = set(n["title"] + n["link"] for n in existing[today])
+        for item in news:
+            key = item["title"] + item["link"]
+            if key not in existing_keys:
+                existing[today].append(item)
 
-    for stock in matched_stocks:
-        for news in stock["news"]:
-            if news not in news_data[today]:
-                news_data[today].append(news)
-
-    news_data = clean_old_news(news_data)
-    save_news(news_data)
-
-    return render_template_string(TEMPLATE,
-                                  matched_stocks=matched_stocks,
-                                  news_data=news_data,
-                                  last_updated=now.strftime("%Y-%m-%d"))
-
-TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>NovaTicker 리치</title>
-    <style>
-        body { font-family: sans-serif; background: #111; color: white; text-align: center; }
-        .tab { padding: 10px 20px; margin: 5px; border-radius: 10px; display: inline-block; cursor: pointer; }
-        .active { background: #00c896; color: white; }
-        .inactive { background: #444; color: white; }
-        .card { background: #222; margin: 10px auto; padding: 15px; width: 90%; border-radius: 10px; text-align: left; }
-        a { color: #00c896; text-decoration: none; }
-    </style>
-</head>
-<body>
-    <h2>📊 NovaTicker 리치</h2>
-    <div>
-        <span class="tab inactive" onclick="showTab('spikes')">📈 급등 종목</span>
-        <span class="tab active" onclick="showTab('news')">📰 호재 뉴스</span>
-    </div>
-    <div id="spikes" style="display:none;">
-        {% if matched_stocks %}
-            {% for stock in matched_stocks %}
-                <div class="card">
-                    <b>{{ stock.ticker }}</b> 🚀 {{ stock.price_change }}% / 📊 {{ stock.volume_change }}배
-                    {% for item in stock.news %}
-                        <div>📰 <a href="{{ item.link }}" target="_blank">{{ item.title }}</a></div>
-                    {% endfor %}
-                </div>
-            {% endfor %}
-        {% else %}
-            <p>⏰ 마지막 갱신: 정보 없음</p>
-            <p>📉 종목 없음</p>
-        {% endif %}
-    </div>
-    <div id="news">
-        <p>⏰ 마지막 갱신: {{ last_updated }}</p>
-        {% if news_data %}
-            {% for date, items in news_data.items() %}
-                <h4>📅 {{ date }}</h4>
-                {% for item in items %}
-                    <div class="card">
-                        📰 <a href="{{ item.link }}" target="_blank">{{ item.title }}</a>
-                    </div>
-                {% endfor %}
-            {% endfor %}
-        {% else %}
-            <p>📭 뉴스 없음</p>
-        {% endif %}
-    </div>
-    <script>
-        function showTab(tab) {
-            document.getElementById('spikes').style.display = tab === 'spikes' ? 'block' : 'none';
-            document.getElementById('news').style.display = tab === 'news' ? 'block' : 'none';
-            let tabs = document.getElementsByClassName('tab');
-            for (let t of tabs) {
-                t.classList.remove('active');
-                t.classList.add('inactive');
-            }
-            event.target.classList.add('active');
+        # 🔁 3일 지난 뉴스 삭제
+        limit = datetime.now() - timedelta(days=3)
+        existing = {
+            date: items for date, items in existing.items()
+            if datetime.strptime(date, "%Y-%m-%d") >= limit
         }
-    </script>
-</body>
-</html>
-"""
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(existing, f, ensure_ascii=False, indent=2)
+
+        return news
+    except Exception as e:
+        print("호재 뉴스 오류:", e)
+        return []
+
+# ✅ 라우팅
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/rising_stocks.json")
+def rising_data():
+    rising, warning = analyze_stocks()
+    result = {
+        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "rising": rising,
+        "warning": warning
+    }
+    with open("rising_stocks.json", "w", encoding="utf-8") as f:
+        json.dump(result, f, ensure_ascii=False)
+    return jsonify(result)
+
+@app.route("/positive_news.json")
+def positive_data():
+    fetch_positive_news()
+    with open("positive_news.json", "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return jsonify(data)
+
+@app.route("/run")
+def run_all_tasks():
+    rising, _ = analyze_stocks()
+    fetch_positive_news()
+    return jsonify({"status": "success", "message": "수집 완료", "rising_count": len(rising)})
+
+@app.route("/<path:filename>")
+def static_files(filename):
+    return send_from_directory(".", filename)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=3000)
