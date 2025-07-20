@@ -4,152 +4,155 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>NovaTicker 리치</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1&display=swap" />
   <style>
     body {
       background-color: #111;
       color: white;
-      font-family: 'Gothic A1', sans-serif;
+      font-family: sans-serif;
       text-align: center;
-      margin: 0;
-      padding: 0;
+      padding: 10px;
     }
-    h1 {
-      margin-top: 20px;
-    }
-    .tabs, .filters {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin: 15px 0;
-    }
-    .tab, .filter-btn {
-      background-color: #333;
-      color: white;
-      padding: 10px 16px;
-      border-radius: 12px;
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      border-radius: 10px;
       border: none;
       font-size: 16px;
       cursor: pointer;
     }
-    .tab.active {
-      background-color: #00c39a;
+    .tab-btn {
+      background-color: #444;
+      color: white;
+    }
+    .tab-btn.active {
+      background-color: #00c080;
+    }
+    .filter-btn {
+      background-color: #333;
+      margin: 5px;
     }
     .filter-btn:hover {
-      background-color: #444;
+      background-color: #555;
     }
-    #last-updated {
-      font-size: 14px;
-      color: #ccc;
-      margin-bottom: 10px;
-    }
-    .section {
-      display: none;
-    }
-    .section.active {
-      display: block;
+    .filter-btn.active {
+      background-color: #666;
     }
     .card {
       background-color: #222;
       margin: 10px auto;
-      padding: 12px;
-      max-width: 90%;
-      border-radius: 12px;
+      padding: 10px;
+      border-radius: 10px;
+      max-width: 600px;
       text-align: left;
-      color: #a0f0e0;
+    }
+    a {
+      color: #00e0ff;
+      text-decoration: none;
     }
   </style>
 </head>
 <body>
-
   <h1>📊 NovaTicker 리치</h1>
 
-  <div class="tabs">
-    <button class="tab active" onclick="showSection('spikes')">📈 급등 종목</button>
-    <button class="tab" onclick="showSection('watchlist')">⚠️ 급등 조짐</button>
-    <button class="tab" onclick="showSection('news')">📰 호재 뉴스</button>
+  <div>
+    <button class="tab-btn active" onclick="showTab('rising')">📈 급등 종목</button>
+    <button class="tab-btn" onclick="showTab('warning')">⚠️ 급등 조짐</button>
+    <button class="tab-btn" onclick="showTab('news')">📰 호재 뉴스</button>
   </div>
 
-  <div id="last-updated">📩 마지막 갱신: 불러오는 중...</div>
+  <p id="updateTime">📅 마지막 갱신: 불러오는 중...</p>
 
-  <!-- 급등 종목 -->
-  <div id="spikes" class="section active">
-    <div id="spike-list"></div>
+  <div id="filters" style="display:none;">
+    <button class="filter-btn" onclick="filterNews('fda')">🧪 FDA/임상</button>
+    <button class="filter-btn" onclick="filterNews('bio')">🧬 바이오</button>
+    <button class="filter-btn" onclick="filterNews('rebound')">📉 급락 후 반등</button>
+    <button class="filter-btn" onclick="filterNews('spike')">💥 급등 이슈</button>
+    <button class="filter-btn" onclick="resetFilter()">❌ 초기화</button>
   </div>
 
-  <!-- 급등 조짐 -->
-  <div id="watchlist" class="section">
-    <div id="watchlist-list"></div>
-  </div>
-
-  <!-- 호재 뉴스 -->
-  <div id="news" class="section">
-    <!-- ✅ 필터 버튼은 뉴스 탭 안에서만 표시됨 -->
-    <div class="filters">
-      <button class="filter-btn" onclick="filterNews('fda')">🧪 FDA/임상</button>
-      <button class="filter-btn" onclick="filterNews('bio')">🧬 바이오</button>
-      <button class="filter-btn" onclick="filterNews('rebound')">📉 급락 후 반등</button>
-      <button class="filter-btn" onclick="filterNews('issue')">💥 급등 이슈</button>
-      <button class="filter-btn" onclick="filterNews('all')">❌ 초기화</button>
-    </div>
-    <div id="news-list"></div>
-  </div>
+  <div id="content"></div>
 
   <script>
-    const tabs = document.querySelectorAll('.tab');
-    const sections = document.querySelectorAll('.section');
+    let tab = "rising";
+    let newsData = {};
+    let filteredNews = [];
 
-    function showSection(id) {
-      sections.forEach(sec => sec.classList.remove('active'));
-      tabs.forEach(tab => tab.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-      event.target.classList.add('active');
-    }
+    const keywords = {
+      fda: ["fda", "clinical", "임상", "phase 3"],
+      bio: ["bio", "therapeutics", "oncology", "drug"],
+      rebound: ["rebound", "strong recovery", "bounce back"],
+      spike: ["breakout", "explosive", "jumps", "spikes"]
+    };
 
-    async function loadData() {
-      const res = await fetch('/data.json');
-      const data = await res.json();
-      document.getElementById('last-updated').innerText = `🔄 마지막 갱신: ${data.updated}`;
+    function showTab(name) {
+      tab = name;
+      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        if (btn.textContent.includes(name === "rising" ? "급등 종목" : name === "warning" ? "급등 조짐" : "호재 뉴스")) {
+          btn.classList.add("active");
+        }
+      });
 
-      const spikeList = document.getElementById('spike-list');
-      const watchList = document.getElementById('watchlist-list');
-      const newsList = document.getElementById('news-list');
-
-      // 급등 종목
-      spikeList.innerHTML = data.spikes.map(t => `<div class="card">${t}</div>`).join('');
-
-      // 급등 조짐
-      watchList.innerHTML = data.watchlist.map(t => `<div class="card">${t}</div>`).join('');
-
-      // 호재 뉴스
-      newsList.innerHTML = data.positive_news.map(n => `<div class="card" data-text="${n.title.toLowerCase()}">🗞️ ${n.title}</div>`).join('');
+      document.getElementById("filters").style.display = (tab === "news") ? "block" : "none";
+      loadContent();
     }
 
     function filterNews(type) {
-      const keywords = {
-        fda: ["fda", "clinical", "임상", "phase 3", "phase iii"],
-        bio: ["bio", "therapeutics", "oncology", "drug"],
-        rebound: ["rebound", "strong recovery", "bounce back"],
-        issue: ["breakout", "explosive", "jumps", "spikes"],
-      };
-
-      const allCards = document.querySelectorAll('#news-list .card');
-
-      if (type === 'all') {
-        allCards.forEach(c => c.style.display = 'block');
-        return;
-      }
-
-      const filterWords = keywords[type];
-      allCards.forEach(card => {
-        const text = card.dataset.text;
-        const isMatch = filterWords.some(word => text.includes(word.toLowerCase()));
-        card.style.display = isMatch ? 'block' : 'none';
-      });
+      const list = keywords[type];
+      filteredNews = newsData.filter(n =>
+        list.some(kw => n.title.toLowerCase().includes(kw.toLowerCase()))
+      );
+      document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
+      event.target.classList.add("active");
+      renderNews();
     }
 
-    loadData();
+    function resetFilter() {
+      filteredNews = [...newsData];
+      document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
+      renderNews();
+    }
+
+    function loadContent() {
+      if (tab === "rising" || tab === "warning") {
+        fetch("/rising_stocks.json")
+          .then(res => res.json())
+          .then(data => {
+            document.getElementById("updateTime").textContent = "📅 마지막 갱신: " + data.updated;
+            const items = tab === "rising" ? data.rising : data.warning;
+            const html = items.map(item => {
+              return `<div class="card">
+                <strong>${item.ticker}</strong> (${item.percent}%)<br>
+                💵 ${item.open} → ${item.latest}<br>
+                📊 거래량: ${item.volume_prev} → ${item.volume_now}<br>
+                ${item.news && item.news.length ? item.news.map(n => `<a href="${n.link}" target="_blank">📰 ${n.title}</a><br>`).join('') : ''}
+              </div>`;
+            }).join("");
+            document.getElementById("content").innerHTML = html || "<p>표시할 데이터가 없습니다.</p>";
+          });
+      } else {
+        fetch("/positive_news.json")
+          .then(res => res.json())
+          .then(data => {
+            const today = new Date().toISOString().slice(0, 10);
+            newsData = data[today] || [];
+            filteredNews = [...newsData];
+            renderNews();
+          });
+      }
+    }
+
+    function renderNews() {
+      const html = filteredNews.map(n =>
+        `<div class="card"><a href="${n.link}" target="_blank">📰 ${n.title}</a></div>`
+      ).join("");
+      document.getElementById("content").innerHTML = html || "<p>표시할 뉴스가 없습니다.</p>";
+    }
+
+    // ✅ 첫 로딩 시 run 호출하고 그다음 로딩 시작
+    fetch("/run").then(() => {
+      setTimeout(loadContent, 3000); // 3초 후 첫 데이터 불러오기
+    });
   </script>
 </body>
 </html>
