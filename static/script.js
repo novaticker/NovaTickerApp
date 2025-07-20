@@ -8,8 +8,7 @@ function showTab(tabId) {
 function filterNews(keyword) {
   document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
   event.target.classList.add('active');
-  const items = document.querySelectorAll('.news-item');
-  items.forEach(item => {
+  document.querySelectorAll('.news-item').forEach(item => {
     item.style.display = item.innerText.includes(keyword) ? 'block' : 'none';
   });
 }
@@ -51,16 +50,30 @@ async function loadData() {
         : '<p>📭 조짐 종목 없음</p>'
     );
 
-    // ✅ 호재 뉴스
-    const newsList = data.positive_news?.[now] || [];
-    document.getElementById('news-list').innerHTML = newsList.length
-      ? newsList.map(n => `
-        <div class="news-item">
-          <button class="delete-btn" onclick="deleteNews('${now}', '${n.title.replace(/'/g, "\\'")}')">🗑️</button>
-          <div class="news-title"><a href="${n.link}" target="_blank">${n.title}</a></div>
-        </div>
-      `).join('')
-      : '<p>📭 오늘의 호재 뉴스가 없습니다</p>';
+    // ✅ 호재 뉴스 (모든 날짜 순회)
+    const newsData = data.positive_news || {};
+    const newsListDiv = document.getElementById('news-list');
+    newsListDiv.innerHTML = '';
+
+    const dates = Object.keys(newsData).sort().reverse();
+    if (dates.length === 0) {
+      newsListDiv.innerHTML = '<p>📭 등록된 호재 뉴스가 없습니다</p>';
+    } else {
+      dates.forEach(date => {
+        const section = document.createElement('div');
+        section.innerHTML = `<h3>🗓️ ${date}</h3>`;
+        newsData[date].forEach(n => {
+          const item = document.createElement('div');
+          item.className = 'news-item';
+          item.innerHTML = `
+            <button class="delete-btn" onclick="deleteNews('${date}', '${n.title.replace(/'/g, "\\'")}')">🗑️</button>
+            <div class="news-title"><a href="${n.link}" target="_blank">${n.title}</a></div>
+          `;
+          section.appendChild(item);
+        });
+        newsListDiv.appendChild(section);
+      });
+    }
   } catch (e) {
     console.error('❌ 데이터 로드 실패:', e);
     document.getElementById('rising-list').innerText = '⚠️ 급등 종목 로딩 실패';
