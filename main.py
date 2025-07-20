@@ -26,16 +26,27 @@ def fetch_news(query):
     res = requests.get(url).json()
     articles = res.get('results', [])
     filtered = []
-    now_kst = datetime.now(KST).strftime('%H:%M')
 
     for a in articles:
         title = a.get('title', '')
         if not any(x in title.lower() for x in ['bitcoin', 'ethereum', 'crypto']):
+            # pubDate → 한국 시간 변환
+            pub_utc = a.get('pubDate')
+            if pub_utc:
+                try:
+                    utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S")
+                    kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(KST)
+                    kst_time_str = kst_dt.strftime("%H:%M")
+                except:
+                    kst_time_str = ""
+            else:
+                kst_time_str = ""
+
             filtered.append({
                 'title': translator.translate(title, dest='ko').text,
                 'link': a.get('link', ''),
                 'symbol': query,
-                'time': now_kst
+                'time': kst_time_str
             })
 
     return filtered
@@ -114,7 +125,7 @@ def get_data():
     with open(NEWS_FILE, 'r') as f:
         news = json.load(f)
 
-    updated_time = datetime.utcnow().isoformat()  # UTC 기준 갱신 시각
+    updated_time = datetime.utcnow().isoformat()  # UptimeRobot 갱신 감지용 UTC 시간
 
     return jsonify({
         'rising': rising,
