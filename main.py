@@ -15,7 +15,6 @@ NEWS_API_KEY = 'pub_af7cbc0a338a4f64aeba8b044a544dca'
 NEWS_FILE = 'positive_news.json'
 SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC', 'EXPO']
 translator = Translator()
-
 KST = pytz.timezone('Asia/Seoul')
 
 @app.route('/')
@@ -114,10 +113,14 @@ def get_data():
     rising, signal = analyze_stocks()
     with open(NEWS_FILE, 'r') as f:
         news = json.load(f)
+
+    updated_time = datetime.utcnow().isoformat()  # UTC 기준 갱신 시각
+
     return jsonify({
         'rising': rising,
         'signal': signal,
-        'positive_news': news
+        'positive_news': news,
+        'updated': updated_time
     })
 
 @app.route('/delete_news', methods=['POST'])
