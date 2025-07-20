@@ -1,100 +1,68 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const tabs = document.querySelectorAll(".tab");
-  const sections = document.querySelectorAll(".section");
-  const filterButtons = document.querySelectorAll(".filter-btn");
-  const resetButton = document.getElementById("reset-btn");
+<script>
+  const BASE_URL = location.origin;
 
-  let rawData = {};
-
-  function switchTab(tabId) {
-    tabs.forEach(tab => tab.classList.remove("active"));
-    sections.forEach(section => section.classList.remove("active"));
-
-    document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add("active");
-    document.getElementById(tabId).classList.add("active");
+  function showTab(tabId) {
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.content').forEach(div => div.classList.remove('active'));
+    document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+    document.getElementById(tabId).classList.add('active');
   }
 
-  tabs.forEach(tab => {
-    tab.addEventListener("click", () => switchTab(tab.dataset.tab));
-  });
-
-  resetButton.addEventListener("click", () => renderNews(rawData.positive_news));
-
-  filterButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const type = btn.dataset.type;
-      const filtered = {};
-      for (const date in rawData.positive_news) {
-        filtered[date] = rawData.positive_news[date].filter(n =>
-          n.title.includes(type)
-        );
-      }
-      renderNews(filtered);
+  function filterNews(keyword) {
+    document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    const items = document.querySelectorAll('.news-item');
+    items.forEach(item => {
+      item.style.display = item.innerText.includes(keyword) ? 'block' : 'none';
     });
-  });
+  }
 
-  function deleteNews(date, title) {
-    fetch("https://novatickerapp.onrender.com/delete_news", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+  function resetFilter() {
+    document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.news-item').forEach(item => item.style.display = 'block');
+  }
+
+  async function loadData() {
+    try {
+      const res = await fetch(`${BASE_URL}/data.json`);
+      const data = await res.json();
+      const now = new Date().toISOString().split('T')[0];
+
+      // 급등 종목
+      const rising = data.rising || [];
+      document.getElementById('rising-list').innerHTML = `<p>📅 ${now}</p>` + rising.map(i => {
+        const mark = i.news ? '⭐' : '';
+        return `<div>${i.symbol} ${mark} ${i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : ''}</div>`;
+      }).join('<hr>');
+
+      // 급등 조짐
+      const signal = data.signal || [];
+      document.getElementById('signal-list').innerHTML = `<p>📅 ${now}</p>` + signal.map(i => {
+        const mark = i.news ? '⭐' : '';
+        return `<div>${i.symbol} ${mark} ${i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : ''}</div>`;
+      }).join('<hr>');
+
+      // 호재 뉴스
+      const newsList = data.positive_news[now] || [];
+      document.getElementById('news-list').innerHTML = newsList.map(n => `
+        <div class="news-item">
+          <button class="delete-btn" onclick="deleteNews('${now}', '${n.title.replace(/'/g, "\\'")}')">🗑️</button>
+          <div class="news-title"><a href="${n.link}" target="_blank">${n.title}</a></div>
+        </div>
+      `).join('');
+    } catch (e) {
+      console.error('데이터 불러오기 실패:', e);
+    }
+  }
+
+  async function deleteNews(date, title) {
+    const res = await fetch(`${BASE_URL}/delete_news`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ date, title })
-    }).then(() => fetchData());
-  }
-
-  function renderNews(data) {
-    const newsContainer = document.getElementById("news-container");
-    newsContainer.innerHTML = "";
-    const sortedDates = Object.keys(data).sort((a, b) => b.localeCompare(a));
-
-    sortedDates.forEach(date => {
-      const title = document.createElement("h3");
-      title.textContent = `🗓 ${date}`;
-      newsContainer.appendChild(title);
-
-      data[date].forEach(n => {
-        const div = document.createElement("div");
-        div.className = "news-item";
-        div.innerHTML = `
-          <a href="${n.link}" target="_blank">${n.title}</a>
-          <button class="delete-btn">🗑️</button>
-        `;
-        div.querySelector("button").onclick = () => deleteNews(date, n.title);
-        newsContainer.appendChild(div);
-      });
     });
+    if (res.ok) loadData();
   }
 
-  function renderStock(list, containerId) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = "";
-    list.forEach(s => {
-      const div = document.createElement("div");
-      div.className = "stock-item";
-      const star = s.news ? "⭐" : "";
-      const link = s.news ? `<a href="${s.news.link}" target="_blank">${s.news.title}</a>` : "";
-      div.innerHTML = `
-        <div>📈 ${s.symbol} ${star}</div>
-        <div>📊 ${s.change}% | 거래량 ${s.volume.toLocaleString()}</div>
-        ${link ? `<div class="news-link">${link}</div>` : ""}
-      `;
-      container.appendChild(div);
-    });
-  }
-
-  function fetchData() {
-    fetch("https://novatickerapp.onrender.com/data.json")
-      .then(res => res.json())
-      .then(data => {
-        rawData = data;
-        renderNews(data.positive_news);
-        renderStock(data.rising, "rising-list");
-        renderStock(data.signal, "signal-list");
-        document.getElementById("loading").style.display = "none";
-      })
-      .catch(e => {
-        console.error("데이터 로딩 실패:", e);
-      });
-  }
-
-  fetchData();
-});
+  loadData();
+</script>
