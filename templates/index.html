@@ -5,20 +5,70 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>NovaTicker 리치</title>
   <style>
-    body { background: #111; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 0; }
-    h1 { font-size: 1.8em; margin: 20px 0; }
-    .tab { display: flex; justify-content: center; margin-bottom: 10px; }
-    .tab button { background: #333; border: none; padding: 10px 20px; color: white; font-size: 1em; cursor: pointer; }
-    .tab button.active { background: #00ffe4; color: black; font-weight: bold; }
-    .content { padding: 20px; }
-    .card { background: #222; margin: 10px auto; padding: 15px; border-radius: 10px; width: 90%; text-align: left; }
-    .date-title { background: #333; padding: 10px; margin: 20px auto 5px; width: 90%; border-radius: 8px; text-align: center; font-weight: bold; }
-    a { color: #00ffe4; text-decoration: none; }
-    .updated-time { color: #ccc; font-size: 0.9em; margin-bottom: 10px; }
+    body {
+      background-color: #111;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      font-size: 1.8em;
+      margin: 20px 0;
+    }
+    .tab {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+    .tab button {
+      background-color: #333;
+      border: none;
+      padding: 10px 20px;
+      color: white;
+      font-size: 1em;
+      cursor: pointer;
+    }
+    .tab button.active {
+      background-color: #00ffe4;
+      color: black;
+      font-weight: bold;
+    }
+    .content {
+      padding: 20px;
+    }
+    .card {
+      background-color: #222;
+      margin: 10px auto;
+      padding: 15px;
+      border-radius: 10px;
+      width: 90%;
+      text-align: left;
+    }
+    .date-title {
+      background-color: #333;
+      padding: 10px;
+      margin: 20px auto 5px;
+      width: 90%;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: bold;
+    }
+    a {
+      color: #00ffe4;
+      text-decoration: none;
+    }
+    .updated-time {
+      color: #ccc;
+      font-size: 0.9em;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
   <h1>📊 NovaTicker 리치</h1>
+
   <div class="tab">
     <button class="tablinks active" onclick="openTab(event, 'stocks')">📈 급등 종목</button>
     <button class="tablinks" onclick="openTab(event, 'news')">📰 호재 뉴스</button>
@@ -38,8 +88,12 @@
     function openTab(evt, tabName) {
       let tabcontent = document.getElementsByClassName("tabcontent");
       let tablinks = document.getElementsByClassName("tablinks");
-      for (let i = 0; i < tabcontent.length; i++) tabcontent[i].style.display = "none";
-      for (let i = 0; i < tablinks.length; i++) tablinks[i].classList.remove("active");
+      for (let i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+      for (let i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("active");
+      }
       document.getElementById(tabName).style.display = "block";
       evt.currentTarget.classList.add("active");
     }
@@ -58,17 +112,22 @@
               <b>${item.ticker}</b> (${item.percent}%)<br/>
               💵 ${item.open} → ${item.latest}<br/>
               🔥 거래량: ${item.volume_now.toLocaleString()} (평균 ${item.volume_prev.toLocaleString()})<br/>`;
+
             if (item.news && item.news.length > 0) {
               html += `📰 관련 뉴스:<br/>`;
               item.news.forEach(n => {
                 html += `<a href="${n.link}" target="_blank">- ${n.title}</a><br/>`;
               });
             }
+
             html += `</div>`;
           });
         }
+
         document.getElementById("stocksArea").innerHTML = html;
-        if (data.updated) document.getElementById("stocksTime").innerText = "⏰ 마지막 갱신: " + data.updated;
+        if (data.updated) {
+          document.getElementById("stocksTime").innerText = "⏰ 마지막 갱신: " + data.updated;
+        }
       } catch (err) {
         document.getElementById("stocksArea").innerHTML = "❌ 오류 발생";
       }
@@ -79,8 +138,16 @@
         let res = await fetch("/positive_news.json");
         let data = await res.json();
         let html = "";
-        let updatedText = data.updated || Object.keys(data).sort().reverse()[0] || "정보 없음";
-        delete data.updated;
+
+        let updatedText = "";
+
+        if (data.updated) {
+          updatedText = data.updated;
+          delete data.updated;
+        } else {
+          updatedText = Object.keys(data).sort().reverse()[0] || "정보 없음";
+        }
+
         document.getElementById("newsTime").innerText = "⏰ 마지막 갱신: " + updatedText;
 
         if (Object.keys(data).length === 0) {
@@ -96,14 +163,18 @@
             });
           });
         }
+
         document.getElementById("newsArea").innerHTML = html;
       } catch (err) {
         document.getElementById("newsArea").innerHTML = "❌ 뉴스 불러오기 실패";
       }
     }
 
+    // 최초 실행
     loadRisingStocks();
     loadPositiveNews();
+
+    // 5분마다 자동 새로고침
     setInterval(() => {
       loadRisingStocks();
       loadPositiveNews();
