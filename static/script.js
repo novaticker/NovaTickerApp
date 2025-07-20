@@ -1,118 +1,100 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const tabs = document.querySelectorAll('.tab-button');
-  const contents = document.querySelectorAll('.tab-content');
-  const newsContainer = document.getElementById('news-container');
-  const risingContainer = document.getElementById('rising-container');
-  const signalContainer = document.getElementById('signal-container');
-  const lastUpdated = document.getElementById('last-updated');
-  const filterButtons = document.querySelectorAll('.filter-button');
-  const resetButton = document.getElementById('reset-button');
+document.addEventListener("DOMContentLoaded", () => {
+  const tabs = document.querySelectorAll(".tab");
+  const sections = document.querySelectorAll(".section");
+  const filterButtons = document.querySelectorAll(".filter-btn");
+  const resetButton = document.getElementById("reset-btn");
 
-  let allNews = [];
+  let rawData = {};
+
+  function switchTab(tabId) {
+    tabs.forEach(tab => tab.classList.remove("active"));
+    sections.forEach(section => section.classList.remove("active"));
+
+    document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add("active");
+    document.getElementById(tabId).classList.add("active");
+  }
 
   tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const target = tab.getAttribute('data-tab');
-      contents.forEach(c => {
-        c.style.display = c.id === target ? 'block' : 'none';
-      });
-    });
+    tab.addEventListener("click", () => switchTab(tab.dataset.tab));
   });
 
-  function createDeleteButton(date, title) {
-    const btn = document.createElement('span');
-    btn.textContent = '🗑️';
-    btn.style.cursor = 'pointer';
-    btn.style.marginLeft = '10px';
-    btn.onclick = () => {
-      fetch('https://novatickerapp.onrender.com/delete_news', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, title })
-      }).then(() => {
-        loadData(); // 삭제 후 다시 로드
-      });
-    };
-    return btn;
-  }
-
-  function createNewsItem(item, date) {
-    const div = document.createElement('div');
-    div.className = 'news-item';
-    const link = document.createElement('a');
-    link.href = item.link;
-    link.target = '_blank';
-    link.textContent = `📰 ${item.title}`;
-    div.appendChild(link);
-    div.appendChild(createDeleteButton(date, item.title));
-    return div;
-  }
-
-  function createStockItem(stock) {
-    const div = document.createElement('div');
-    div.className = 'stock-item';
-    div.innerHTML = `
-      <strong>${stock.symbol}</strong> (${stock.change}%) 📊 거래량: ${stock.volume}
-      ${stock.news ? `<br><a href="${stock.news.link}" target="_blank">📰 ${stock.news.title}</a>` : ''}
-    `;
-    if (stock.news) {
-      div.innerHTML = `<strong>${stock.symbol} ⭐</strong> (${stock.change}%) 📊 거래량: ${stock.volume}<br><a href="${stock.news.link}" target="_blank">📰 ${stock.news.title}</a>`;
-    }
-    return div;
-  }
+  resetButton.addEventListener("click", () => renderNews(rawData.positive_news));
 
   filterButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const keyword = btn.getAttribute('data-filter');
-      const filtered = allNews.filter(item => item.title.includes(keyword));
+    btn.addEventListener("click", () => {
+      const type = btn.dataset.type;
+      const filtered = {};
+      for (const date in rawData.positive_news) {
+        filtered[date] = rawData.positive_news[date].filter(n =>
+          n.title.includes(type)
+        );
+      }
       renderNews(filtered);
     });
   });
 
-  resetButton.addEventListener('click', () => {
-    renderNews(allNews);
-  });
+  function deleteNews(date, title) {
+    fetch("https://novatickerapp.onrender.com/delete_news", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date, title })
+    }).then(() => fetchData());
+  }
 
-  function renderNews(news) {
-    newsContainer.innerHTML = '';
-    news.forEach(item => {
-      const newsItem = createNewsItem(item.item, item.date);
-      newsContainer.appendChild(newsItem);
+  function renderNews(data) {
+    const newsContainer = document.getElementById("news-container");
+    newsContainer.innerHTML = "";
+    const sortedDates = Object.keys(data).sort((a, b) => b.localeCompare(a));
+
+    sortedDates.forEach(date => {
+      const title = document.createElement("h3");
+      title.textContent = `🗓 ${date}`;
+      newsContainer.appendChild(title);
+
+      data[date].forEach(n => {
+        const div = document.createElement("div");
+        div.className = "news-item";
+        div.innerHTML = `
+          <a href="${n.link}" target="_blank">${n.title}</a>
+          <button class="delete-btn">🗑️</button>
+        `;
+        div.querySelector("button").onclick = () => deleteNews(date, n.title);
+        newsContainer.appendChild(div);
+      });
     });
   }
 
-  function loadData() {
-    lastUpdated.textContent = '⏰ 마지막 갱신: 불러오는 중...';
-    fetch('https://novatickerapp.onrender.com/data.json')
+  function renderStock(list, containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = "";
+    list.forEach(s => {
+      const div = document.createElement("div");
+      div.className = "stock-item";
+      const star = s.news ? "⭐" : "";
+      const link = s.news ? `<a href="${s.news.link}" target="_blank">${s.news.title}</a>` : "";
+      div.innerHTML = `
+        <div>📈 ${s.symbol} ${star}</div>
+        <div>📊 ${s.change}% | 거래량 ${s.volume.toLocaleString()}</div>
+        ${link ? `<div class="news-link">${link}</div>` : ""}
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function fetchData() {
+    fetch("https://novatickerapp.onrender.com/data.json")
       .then(res => res.json())
       .then(data => {
-        newsContainer.innerHTML = '';
-        allNews = [];
-        for (const date in data.positive_news) {
-          data.positive_news[date].forEach(item => {
-            allNews.push({ date, item });
-          });
-        }
-        renderNews(allNews);
-
-        risingContainer.innerHTML = '';
-        data.rising.forEach(stock => {
-          risingContainer.appendChild(createStockItem(stock));
-        });
-
-        signalContainer.innerHTML = '';
-        data.signal.forEach(stock => {
-          signalContainer.appendChild(createStockItem(stock));
-        });
-
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-        lastUpdated.textContent = `⏰ 마지막 갱신: ${timeStr}`;
+        rawData = data;
+        renderNews(data.positive_news);
+        renderStock(data.rising, "rising-list");
+        renderStock(data.signal, "signal-list");
+        document.getElementById("loading").style.display = "none";
+      })
+      .catch(e => {
+        console.error("데이터 로딩 실패:", e);
       });
   }
 
-  loadData();
-  setInterval(loadData, 60000); // 1분마다 갱신
+  fetchData();
 });
