@@ -35,25 +35,18 @@ def fetch_news(query):
                 try:
                     utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S")
                     kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(KST)
-                    kst_time_str = kst_dt.strftime("%H:%M")
-                    kst_date_str = kst_dt.strftime("%Y-%m-%d")
-                    timestamp = kst_dt.strftime("%Y-%m-%d %H:%M:%S")
                 except:
-                    kst_time_str = ""
-                    kst_date_str = datetime.now(KST).strftime("%Y-%m-%d")
-                    timestamp = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
+                    kst_dt = datetime.now(KST)
             else:
-                kst_time_str = ""
-                kst_date_str = datetime.now(KST).strftime("%Y-%m-%d")
-                timestamp = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
+                kst_dt = datetime.now(KST)
 
             filtered.append({
                 'title': translator.translate(title, dest='ko').text,
                 'link': a.get('link', ''),
                 'symbol': query,
-                'time': kst_time_str,
-                'date': kst_date_str,
-                'timestamp': timestamp
+                'time': kst_dt.strftime("%H:%M"),
+                'date': kst_dt.strftime("%Y-%m-%d"),
+                'timestamp': kst_dt.strftime("%Y-%m-%d %H:%M:%S")
             })
 
     return filtered
@@ -78,14 +71,16 @@ def update_news():
                 data[date].append(item)
                 all_titles.add(item['title'])
 
-    # 각 날짜별로 timestamp 기준 최신순 정렬
+    # 날짜별로 timestamp 기준 내림차순 정렬
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
-    # 3일 초과된 날짜 삭제
-    cutoff = datetime.now(KST) - timedelta(days=3)
-    data = {date: items for date, items in data.items()
-            if datetime.strptime(date, '%Y-%m-%d') >= cutoff}
+    # 3일 초과된 날짜 삭제 (타임존 없는 naive로 비교)
+    cutoff = datetime.now(KST).replace(tzinfo=None) - timedelta(days=3)
+    data = {
+        date: items for date, items in data.items()
+        if datetime.strptime(date, '%Y-%m-%d') >= cutoff
+    }
 
     with open(NEWS_FILE, 'w') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
