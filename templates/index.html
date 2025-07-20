@@ -29,6 +29,7 @@
       margin: 4px;
       border-radius: 10px;
       font-size: 1em;
+      cursor: pointer;
     }
 
     .tab-button.active {
@@ -56,6 +57,7 @@
       margin: 4px 4px;
       border-radius: 8px;
       font-size: 0.9em;
+      cursor: pointer;
     }
 
     .filter-button.active {
@@ -90,6 +92,7 @@
       font-size: 0.85em;
       color: #aaa;
       text-align: right;
+      margin-top: 5px;
     }
 
     h3 {
@@ -118,10 +121,10 @@
 
   <div id="news" class="content">
     <div class="filter-buttons">
-      <button class="filter-button" onclick="filterNews('FDA')">🧪 FDA/임상</button>
-      <button class="filter-button" onclick="filterNews('바이오')">🧬 바이오</button>
-      <button class="filter-button" onclick="filterNews('반등')">📉 급락 후 반등</button>
-      <button class="filter-button" onclick="filterNews('급등')">💥 급등 이슈</button>
+      <button class="filter-button" onclick="filterNews(event, 'FDA')">🧪 FDA/임상</button>
+      <button class="filter-button" onclick="filterNews(event, '바이오')">🧬 바이오</button>
+      <button class="filter-button" onclick="filterNews(event, '반등')">📉 급락 후 반등</button>
+      <button class="filter-button" onclick="filterNews(event, '급등')">💥 급등 이슈</button>
       <button class="filter-button" onclick="resetFilter()">❌ 초기화</button>
     </div>
     <div id="news-list">⏰ 뉴스 로딩 중...</div>
@@ -135,11 +138,10 @@
       document.getElementById(tabId).classList.add('active');
     }
 
-    function filterNews(keyword) {
+    function filterNews(e, keyword) {
       document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
-      const items = document.querySelectorAll('.news-item');
-      items.forEach(item => {
+      e.target.classList.add('active');
+      document.querySelectorAll('.news-item').forEach(item => {
         item.style.display = item.innerText.includes(keyword) ? 'block' : 'none';
       });
     }
@@ -154,7 +156,7 @@
         const res = await fetch('/data.json');
         const data = await res.json();
         const updatedUTC = new Date(data.updated);
-        const updatedKST = new Date(updatedUTC.getTime() + 9 * 60 * 60 * 1000); // UTC+9
+        const updatedKST = new Date(updatedUTC.getTime() + 9 * 60 * 60 * 1000);
         const timeStr = updatedKST.toLocaleTimeString('ko-KR', { hour12: false });
 
         // 급등 종목
@@ -186,7 +188,7 @@
               <div class="news-item">
                 <button class="delete-btn" onclick="deleteNews('${date}', '${n.title.replace(/'/g, "\\'")}')">🗑️</button>
                 <div class="news-title"><a href="${n.link}" target="_blank">${n.title}</a></div>
-                <div class="news-meta">${n.symbol ? `🧾 (${n.symbol})` : ''} 🕒 ${n.time || ''} KST</div>
+                <div class="news-meta">${n.symbol ? `🧾 (${n.symbol})` : ''} ${n.time ? `🕒 ${n.time} KST` : ''}</div>
               </div>
             `).join('');
           });
@@ -194,7 +196,10 @@
         document.getElementById('news-list').innerHTML = newsHTML;
 
       } catch (e) {
-        console.error('데이터 불러오기 실패:', e);
+        console.error('❌ 데이터 불러오기 실패:', e);
+        document.getElementById('rising-list').innerText = '⚠️ 급등 종목 로딩 실패';
+        document.getElementById('signal-list').innerText = '⚠️ 조짐 종목 로딩 실패';
+        document.getElementById('news-list').innerText = '⚠️ 뉴스 로딩 실패';
       }
     }
 
