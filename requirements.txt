@@ -1,5 +1,5 @@
 flask
-gunicorn
+flask-cors
+yfinance
 requests
 googletrans==4.0.0-rc1
-yfinance
