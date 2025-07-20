@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>📊 NovaTicker 리치</title>
   <link rel="stylesheet" href="/static/style.css" />
-  <script defer src="/static/script.js"></script>
   <style>
     body {
       font-family: 'Arial', sans-serif;
@@ -14,15 +13,10 @@
       text-align: center;
       padding: 20px;
     }
-
     h1 {
       font-size: 2em;
     }
-
-    .tabs {
-      margin-top: 20px;
-    }
-
+    .tabs { margin-top: 20px; }
     .tab-button {
       background-color: #333;
       color: white;
@@ -33,39 +27,21 @@
       font-size: 1em;
       cursor: pointer;
     }
-
-    .tab-button.active {
-      background-color: #00c08b;
-    }
-
-    .content {
-      display: none;
-      margin-top: 20px;
-    }
-
-    .content.active {
-      display: block;
-    }
-
-    .filter-buttons {
-      margin-top: 10px;
-    }
-
+    .tab-button.active { background-color: #00c08b; }
+    .content { display: none; margin-top: 20px; }
+    .content.active { display: block; }
+    .filter-buttons { margin-top: 10px; }
     .filter-button {
       background-color: #222;
       color: white;
       border: none;
       padding: 6px 12px;
-      margin: 4px 4px;
+      margin: 4px;
       border-radius: 8px;
       font-size: 0.9em;
       cursor: pointer;
     }
-
-    .filter-button.active {
-      background-color: #f14e4e;
-    }
-
+    .filter-button.active { background-color: #f14e4e; }
     .news-item {
       margin: 10px auto;
       max-width: 90%;
@@ -75,7 +51,6 @@
       background-color: #1a1a1a;
       text-align: left;
     }
-
     .delete-btn {
       background: none;
       border: none;
@@ -84,19 +59,16 @@
       float: right;
       cursor: pointer;
     }
-
     .news-title {
       font-weight: bold;
       margin-bottom: 5px;
     }
-
     .news-meta {
       font-size: 0.85em;
       color: #aaa;
       text-align: right;
       margin-top: 5px;
     }
-
     h3 {
       margin-top: 30px;
       text-align: left;
@@ -185,11 +157,14 @@
             newsHTML += `<h3>📅 ${date}</h3>`;
             newsHTML += newsData[date].map(n => {
               const safeTitle = n.title.replace(/[`\\]/g, '\\$&').replace(/'/g, "\\'");
+              const symbol = n.symbol ? `🧾 ${n.symbol}` : '';
+              const time = n.time ? `🕒 ${n.time} KST` : '';
+              const meta = symbol || time ? `<div class="news-meta">${symbol}${symbol && time ? ' ｜ ' : ''}${time}</div>` : '';
               return `
                 <div class="news-item">
                   <button class="delete-btn" onclick="deleteNews('${date}', \`${safeTitle}\`)">🗑️</button>
                   <div class="news-title"><a href="${n.link}" target="_blank">${n.title}</a></div>
-                  <div class="news-meta">${n.symbol ? `🧾 (${n.symbol})` : ''} ${n.time ? `🕒 ${n.time} KST` : ''}</div>
+                  ${meta}
                 </div>
               `;
             }).join('');
