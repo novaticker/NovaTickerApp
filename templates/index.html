@@ -1,209 +1,41 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>NovaTicker 리치</title>
-  <style>
-    body {
-      background-color: #111;
-      color: white;
-      font-family: sans-serif;
-      text-align: center;
-      margin: 0;
-      padding: 0;
-    }
-    h1 {
-      font-size: 1.8em;
-      margin: 20px 0;
-    }
-    .tab {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-    }
-    .tab button {
-      background-color: #333;
-      border: none;
-      padding: 10px 20px;
-      margin: 5px;
-      color: white;
-      font-size: 1em;
-      cursor: pointer;
-      border-radius: 8px;
-    }
-    .tab button.active {
-      background-color: #00ffe4;
-      color: black;
-      font-weight: bold;
-    }
-    .content {
-      padding: 20px;
-    }
-    .card {
-      background-color: #222;
-      margin: 10px auto;
-      padding: 15px;
-      border-radius: 10px;
-      width: 90%;
-      text-align: left;
-      position: relative;
-    }
-    .date-title {
-      background-color: #333;
-      padding: 10px;
-      margin: 20px auto 5px;
-      width: 90%;
-      border-radius: 8px;
-      text-align: center;
-      font-weight: bold;
-    }
-    a {
-      color: #00ffe4;
-      text-decoration: none;
-    }
-    .updated-time {
-      color: #ccc;
-      font-size: 0.9em;
-      margin-bottom: 10px;
-    }
-    .delete-btn {
-      position: absolute;
-      top: 10px;
-      right: 15px;
-      background: red;
-      border: none;
-      color: white;
-      font-size: 0.9em;
-      padding: 4px 8px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <h1>📊 NovaTicker 리치</h1>
 
-  <div class="tab">
-    <button class="tablinks active" onclick="openTab(event, 'stocks')">📈 급등 종목</button>
-    <button class="tablinks" onclick="openTab(event, 'news')">📰 호재 뉴스</button>
+  <div class="tab-buttons">
+    <button class="tab-button active" data-tab="rising">📈 급등 종목</button>
+    <button class="tab-button" data-tab="preparing">⚠️ 급등 조짐</button>
+    <button class="tab-button" data-tab="news">📰 호재 뉴스</button>
   </div>
 
-  <div id="stocks" class="content tabcontent" style="display: block;">
-    <div class="updated-time" id="stocksTime"></div>
-    <div id="stocksArea">⏳ 준비 중...</div>
+  <div class="section" id="rising-section">
+    <p>⏰ 마지막 갱신: <span id="last-updated">불러오는 중...</span></p>
+    <ul id="rising-list"></ul>
   </div>
 
-  <div id="news" class="content tabcontent" style="display: none;">
-    <div class="updated-time" id="newsTime"></div>
-    <div id="newsArea">⏳ 준비 중...</div>
+  <div class="section hidden" id="preparing-section">
+    <p>⏰ 마지막 갱신: <span id="last-updated-pre">불러오는 중...</span></p>
+    <ul id="preparing-list"></ul>
   </div>
 
-  <script>
-    function openTab(evt, tabName) {
-      const tabcontent = document.getElementsByClassName("tabcontent");
-      const tablinks = document.getElementsByClassName("tablinks");
-      for (let i = 0; i < tabcontent.length; i++) {
-        tabcontent[i].style.display = "none";
-      }
-      for (let i = 0; i < tablinks.length; i++) {
-        tablinks[i].classList.remove("active");
-      }
-      document.getElementById(tabName).style.display = "block";
-      evt.currentTarget.classList.add("active");
-    }
+  <div class="section hidden" id="news-section">
+    <div class="filter-buttons">
+      <button class="filter-btn" data-type="fda">🧪 FDA/임상</button>
+      <button class="filter-btn" data-type="bio">🧬 바이오</button>
+      <button class="filter-btn" data-type="rebound">📉 급락 후 반등</button>
+      <button class="filter-btn" data-type="soaring">💥 급등 이슈</button>
+      <button class="filter-btn reset">❌ 초기화</button>
+    </div>
+    <div id="news-list">불러오는 중...</div>
+  </div>
 
-    async function loadData() {
-      try {
-        const res = await fetch("/data.json");
-        const data = await res.json();
-
-        // 급등 종목
-        let stockHTML = "";
-        if (data.spikes.length === 0 && data.watchlist.length === 0) {
-          stockHTML = "📭 감지된 종목 없음";
-        } else {
-          data.spikes.forEach(item => {
-            stockHTML += `<div class="card">
-              <b>${item.ticker}</b> (${item.percent}%)<br/>
-              💵 ${item.open} → ${item.latest}<br/>
-              🔥 거래량: ${item.volume_now.toLocaleString()} (평균 ${item.volume_prev.toLocaleString()})<br/>`;
-
-            if (item.news && item.news.length > 0) {
-              stockHTML += `📰 관련 뉴스:<br/>`;
-              item.news.forEach(n => {
-                stockHTML += `<a href="${n.link}" target="_blank">⭐ ${n.title}</a><br/>`;
-              });
-            }
-
-            stockHTML += `</div>`;
-          });
-
-          data.watchlist.forEach(item => {
-            stockHTML += `<div class="card">
-              ⚠️ <b>${item.ticker}</b> 조짐 감지<br/>
-              💵 ${item.open} → ${item.latest} (${item.percent}%)<br/>
-              🔥 거래량: ${item.volume_now.toLocaleString()} (평균 ${item.volume_prev.toLocaleString()})<br/>`;
-
-            if (item.news && item.news.length > 0) {
-              stockHTML += `📰 관련 뉴스:<br/>`;
-              item.news.forEach(n => {
-                stockHTML += `<a href="${n.link}" target="_blank">⭐ ${n.title}</a><br/>`;
-              });
-            }
-
-            stockHTML += `</div>`;
-          });
-        }
-
-        document.getElementById("stocksArea").innerHTML = stockHTML;
-        document.getElementById("stocksTime").innerText = "⏰ 마지막 갱신: " + data.updated;
-
-        // 뉴스
-        const newsArea = document.getElementById("newsArea");
-        const newsTime = document.getElementById("newsTime");
-
-        const dates = Object.keys(data.positive_news).sort().reverse();
-        let newsHTML = "";
-        if (dates.length === 0) {
-          newsHTML = "📭 뉴스 없음";
-        } else {
-          dates.forEach(date => {
-            newsHTML += `<div class="date-title">📅 ${date}</div>`;
-            data.positive_news[date].forEach((item, idx) => {
-              const uid = `${date}___${idx}`;
-              newsHTML += `<div class="card" id="${uid}">
-                <a href="${item.link}" target="_blank">${item.title}</a><br/>
-                🔑 ${item.keyword || ""}
-                <button class="delete-btn" onclick="deleteNews('${date}', ${idx}, '${uid}')">🗑 삭제</button>
-              </div>`;
-            });
-          });
-        }
-
-        newsArea.innerHTML = newsHTML;
-        newsTime.innerText = "⏰ 마지막 갱신: " + data.updated;
-
-      } catch (e) {
-        document.getElementById("stocksArea").innerHTML = "❌ 종목 불러오기 실패";
-        document.getElementById("newsArea").innerHTML = "❌ 뉴스 불러오기 실패";
-      }
-    }
-
-    async function deleteNews(date, index, elementId) {
-      const res = await fetch(`/delete_news?date=${date}&index=${index}`);
-      const data = await res.json();
-      if (data.success) {
-        const el = document.getElementById(elementId);
-        if (el) el.remove();
-      } else {
-        alert("삭제 실패!");
-      }
-    }
-
-    loadData();
-    setInterval(loadData, 5 * 60 * 1000);
-  </script>
+  <script src="/static/script.js"></script>
 </body>
 </html>
