@@ -44,11 +44,14 @@ def is_positive_news(news):
         'fda', 'approval', 'clinical', 'trial',
         'biotech', 'pharma', 'ipo', 'listing',
         'merger', 'acquisition', 'partnership', 'investment',
-        'skyrocket', 'surge', 'breakout', 'jump'
+        'skyrocket', 'surge', 'breakout', 'jump',
+        'launch', 'open', 'expand', 'expansion', 'event',
+        'new technology', 'unveil', 'announce', 'release'
     ]
+
     exclude_keywords = [
-        'crypto', 'bitcoin', 'ethereum', 'lawsuit',
-        'china', 'hong kong', 'delisting', 'sec investigation'
+        'crypto', 'bitcoin', 'ethereum',
+        'lawsuit', 'china', 'hong kong', 'delisting', 'sec investigation'
     ]
 
     if not any(kw in title or kw in content for kw in positive_keywords):
