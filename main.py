@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 import yfinance as yf
 from datetime import datetime, timedelta
@@ -7,13 +7,17 @@ import os
 import requests
 from googletrans import Translator
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 CORS(app)
 
 NEWS_API_KEY = 'pub_af7cbc0a338a4f64aeba8b044a544dca'
 NEWS_FILE = 'positive_news.json'
 SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC', 'EXPO']
 translator = Translator()
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 def fetch_news(query):
     url = f'https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&q={query}&country=us&language=en&category=business'
@@ -72,8 +76,7 @@ def analyze_stocks():
             change = (price_now - price_prev) / price_prev * 100
 
             item = {'symbol': sym, 'volume': int(vol_now), 'change': round(change, 2)}
-            
-            # 뉴스 추가
+
             news = get_related_news(sym)
             if news:
                 item['news'] = news
