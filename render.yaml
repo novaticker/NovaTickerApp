@@ -1,8 +1,7 @@
-# render.yaml
 services:
   - type: web
     name: novaticker
     env: python
     buildCommand: ""
-    startCommand: gunicorn main:app
+    startCommand: python main.py
     pythonVersion: 3.10.13
