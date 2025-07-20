@@ -14,12 +14,16 @@ CORS(app)
 NEWS_API_KEY = 'pub_af7cbc0a338a4f64aeba8b044a544dca'
 NEWS_FILE = 'positive_news.json'
 
+# 뉴스 수집용 키워드
 SYMBOLS = [
     'nasdaq', 'fda', 'clinical trial', 'phase 1', 'phase 2', 'phase 3',
     'merger', 'approval', 'biotech', 'pharma', 'listing',
     'acquisition', 'positive result', 'breakthrough',
     '암치료', '신약 승인', '신약 성공', '상장 승인', '임상 성공'
 ]
+
+# 실제 주식 ticker (yfinance용)
+STOCK_SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC']
 
 translator = Translator()
 KST = pytz.timezone('Asia/Seoul')
@@ -72,7 +76,7 @@ def fetch_news(query):
             'timestamp': kst_dt.strftime("%Y-%m-%d %H:%M:%S")
         })
 
-    print(f"[{query}] 수집된 뉴스 개수: {len(filtered)}")  # 로그 출력
+    print(f"[{query}] 수집된 뉴스 개수: {len(filtered)}")
     return filtered
 
 def update_news():
@@ -111,7 +115,7 @@ def update_news():
 def analyze_stocks():
     rising = []
     signal = []
-    for sym in SYMBOLS[:5]:
+    for sym in STOCK_SYMBOLS:
         try:
             df = yf.download(sym, period="5d", interval="1m")
             if len(df) < 4:
@@ -188,7 +192,6 @@ def delete_news():
         return jsonify({'status': 'deleted'})
     return jsonify({'error': 'not found'}), 404
 
-# ✅ 자동 수집용 엔드포인트
 @app.route('/update_news')
 def trigger_update_news():
     update_news()
