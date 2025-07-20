@@ -5,4 +5,4 @@ services:
     env: python
     buildCommand: ""
     startCommand: gunicorn main:app
-    pythonVersion: 3.10
+    pythonVersion: 3.10.13
