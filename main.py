@@ -188,5 +188,11 @@ def delete_news():
         return jsonify({'status': 'deleted'})
     return jsonify({'error': 'not found'}), 404
 
+# ✅ 자동 수집용 엔드포인트
+@app.route('/update_news')
+def trigger_update_news():
+    update_news()
+    return '뉴스 수집 완료 ✅'
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
