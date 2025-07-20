@@ -28,15 +28,13 @@ def fetch_news(query):
     filtered = []
 
     for a in articles:
-        if not isinstance(a, dict):  # ← 오류 방지 핵심
+        if not isinstance(a, dict):
             continue
 
         title = a.get('title', '')
         link = a.get('link', '')
 
         if not link or 'example.com' in link:
-            continue
-        if any(x in title.lower() for x in ['bitcoin', 'ethereum', 'crypto']):
             continue
 
         pub_utc = a.get('pubDate')
@@ -83,6 +81,7 @@ def update_news():
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
+    # 최신 3일치만 유지
     cutoff = datetime.now(KST).replace(tzinfo=None) - timedelta(days=3)
     data = {
         date: items for date, items in data.items()
@@ -97,7 +96,7 @@ def analyze_stocks():
     signal = []
     for sym in SYMBOLS:
         try:
-            df = yf.download(sym, period="5d", interval="1m")  # ⚠️ '5m' → '5d' 로 수정
+            df = yf.download(sym, period="5d", interval="1m")
             if len(df) < 4:
                 continue
 
