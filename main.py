@@ -15,10 +15,10 @@ NEWS_API_KEY = "pub_af7cbc0a338a4f64aeba8b044a544dca"
 TICKERS = ["IXHL", "STEM", "TELL", "CRSP", "APLD", "INPX", "CYCC", "BLAZ", "LMFA", "CW", "SAIC", "EXPO"]
 
 FILTER_KEYWORDS = [
-    "fda", "biotech", "pharma", "clinical", "therapeutics", "healthcare",
-    "phase 1", "phase 2", "phase 3", "clinical trial", "clinical data",
-    "study results", "positive data", "successful trial", "efficacy", "safety profile",
-    "crypto", "coin", "blockchain", "web3", "nft", "ai", "artificial intelligence"
+    "fda", "clinical", "임상", "phase 1", "phase 2", "phase 3", "clinical trial", "study results",
+    "bio", "therapeutics", "oncology", "drug", "healthcare",
+    "rebound", "strong recovery", "bounce back",
+    "breakout", "explosive", "jumps", "spikes"
 ]
 
 # ✅ 뉴스 수집
@@ -115,7 +115,7 @@ def fetch_positive_news():
     url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&country=us&language=en&category=business"
     try:
         res = requests.get(url)
-        articles = res.json().get("results", [])[:10]
+        articles = res.json().get("results", [])[:20]
         news = []
         seen_keys = set()
 
@@ -174,30 +174,29 @@ def fetch_positive_news():
 def home():
     return render_template("index.html")
 
-@app.route("/rising_stocks.json")
-def rising_data():
+@app.route("/data.json")
+def merged_data():
     rising, warning = analyze_stocks()
-    result = {
-        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "rising": rising,
-        "warning": warning
-    }
-    with open("rising_stocks.json", "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False)
-    return jsonify(result)
-
-@app.route("/positive_news.json")
-def positive_data():
     fetch_positive_news()
-    with open("positive_news.json", "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return jsonify(data)
+
+    try:
+        with open("positive_news.json", "r", encoding="utf-8") as f:
+            positive = json.load(f)
+    except:
+        positive = {}
+
+    return jsonify({
+        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "spikes": rising,
+        "watchlist": warning,
+        "positive_news": positive
+    })
 
 @app.route("/run")
-def run_all_tasks():
-    rising, _ = analyze_stocks()
+def manual_run():
+    analyze_stocks()
     fetch_positive_news()
-    return jsonify({"status": "success", "message": "수집 완료", "rising_count": len(rising)})
+    return jsonify({"status": "done"})
 
 @app.route("/<path:filename>")
 def static_files(filename):
