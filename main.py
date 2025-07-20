@@ -29,25 +29,35 @@ def fetch_news(query):
 
     for a in articles:
         title = a.get('title', '')
-        if not any(x in title.lower() for x in ['bitcoin', 'ethereum', 'crypto']):
-            pub_utc = a.get('pubDate')
-            if pub_utc:
-                try:
-                    utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S")
-                    kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(KST)
-                except:
-                    kst_dt = datetime.now(KST)
-            else:
-                kst_dt = datetime.now(KST)
+        link = a.get('link', '')
+        
+        # ❗가짜 링크 필터링
+        if not link or 'example.com' in link:
+            continue
+        
+        # ❗암호화폐 관련 뉴스 제외
+        if any(x in title.lower() for x in ['bitcoin', 'ethereum', 'crypto']):
+            continue
 
-            filtered.append({
-                'title': translator.translate(title, dest='ko').text,
-                'link': a.get('link', ''),
-                'symbol': query,
-                'time': kst_dt.strftime("%H:%M"),
-                'date': kst_dt.strftime("%Y-%m-%d"),
-                'timestamp': kst_dt.strftime("%Y-%m-%d %H:%M:%S")
-            })
+        # 시간 변환 처리
+        pub_utc = a.get('pubDate')
+        if pub_utc:
+            try:
+                utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S")
+                kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(KST)
+            except:
+                kst_dt = datetime.now(KST)
+        else:
+            kst_dt = datetime.now(KST)
+
+        filtered.append({
+            'title': translator.translate(title, dest='ko').text,
+            'link': link,
+            'symbol': query,  # 실제 티커 그대로 포함
+            'time': kst_dt.strftime("%H:%M"),
+            'date': kst_dt.strftime("%Y-%m-%d"),
+            'timestamp': kst_dt.strftime("%Y-%m-%d %H:%M:%S")
+        })
 
     return filtered
 
@@ -71,11 +81,11 @@ def update_news():
                 data[date].append(item)
                 all_titles.add(item['title'])
 
-    # 날짜별로 timestamp 기준 내림차순 정렬
+    # 날짜별 정렬
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
-    # 3일 초과된 날짜 삭제 (타임존 없는 naive로 비교)
+    # 3일 초과된 뉴스 삭제
     cutoff = datetime.now(KST).replace(tzinfo=None) - timedelta(days=3)
     data = {
         date: items for date, items in data.items()
