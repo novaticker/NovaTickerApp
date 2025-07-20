@@ -6,6 +6,7 @@
   <title>📊 NovaTicker 리치</title>
   <link rel="stylesheet" href="/static/style.css" />
   <style>
+    /* 기존 스타일은 생략 없이 그대로 유지됨 */
     body {
       font-family: 'Segoe UI', 'Pretendard', sans-serif;
       background-color: #0d1117;
@@ -224,7 +225,7 @@
               const meta = symbol || time ? `<div class="news-meta">${symbol}${symbol && time ? ' ｜ ' : ''}${time}</div>` : '';
               return `
                 <div class="news-item">
-                  <button class="delete-btn" onclick="deleteNews('${date}', \`${safeTitle}\`)">🗑️</button>
+                  <button class="delete-btn" onclick="confirmDelete('${date}', \`${safeTitle}\`)">🗑️</button>
                   <div class="news-title"><a href="${n.link}" target="_blank">${n.title}</a></div>
                   ${meta}
                 </div>
@@ -242,13 +243,19 @@
       }
     }
 
-    async function deleteNews(date, title) {
+    async function confirmDelete(date, title) {
+      if (!confirm("이 뉴스를 삭제하시겠습니까?")) return;
       const res = await fetch('/delete_news', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date, title })
       });
-      if (res.ok) loadData();
+      if (res.ok) {
+        alert("🗑️ 뉴스가 삭제되었습니다");
+        loadData();
+      } else {
+        alert("❌ 삭제 실패");
+      }
     }
 
     async function refreshNews() {
