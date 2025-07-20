@@ -154,13 +154,7 @@ def fetch_positive_news():
             if key not in existing_keys:
                 existing[today].append(item)
 
-        # 🔁 3일 지난 뉴스 삭제
-        limit = datetime.now() - timedelta(days=3)
-        existing = {
-            date: items for date, items in existing.items()
-            if datetime.strptime(date, "%Y-%m-%d") >= limit
-        }
-
+        # ✅ 뉴스 삭제 X — 모든 날짜 유지
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(existing, f, ensure_ascii=False, indent=2)
 
