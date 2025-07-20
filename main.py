@@ -14,7 +14,6 @@ CORS(app)
 NEWS_API_KEY = 'pub_af7cbc0a338a4f64aeba8b044a544dca'
 NEWS_FILE = 'positive_news.json'
 
-# 주식 종목 + 일반 키워드 (미국 주식 + 코인 포함)
 SYMBOLS = [
     'APLD', 'CYCC', 'LMFA', 'CW', 'SAIC',
     'nasdaq', 'us stocks', 'fda', 'ipo',
@@ -58,7 +57,6 @@ def fetch_news(query):
         else:
             kst_dt = datetime.now(KST)
 
-        # 한국어 번역
         try:
             translated = translator.translate(title, dest='ko').text
         except:
@@ -98,20 +96,19 @@ def update_news():
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
-    # 3일 초과한 날짜 자동 제거
     cutoff = datetime.now(KST).replace(tzinfo=None) - timedelta(days=3)
     data = {
         date: items for date, items in data.items()
         if datetime.strptime(date, '%Y-%m-%d') >= cutoff
     }
 
-    with open(NEWS_FILE, 'w') as f:
+    with open(NEWS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 def analyze_stocks():
     rising = []
     signal = []
-    for sym in SYMBOLS[:5]:  # 종목만 분석
+    for sym in SYMBOLS[:5]:
         try:
             df = yf.download(sym, period="5d", interval="1m")
             if len(df) < 4:
@@ -142,7 +139,7 @@ def get_related_news(symbol):
     today = datetime.now(KST).strftime('%Y-%m-%d')
     if not os.path.exists(NEWS_FILE):
         return None
-    with open(NEWS_FILE, 'r') as f:
+    with open(NEWS_FILE, 'r', encoding='utf-8') as f:
         data = json.load(f)
     today_news = data.get(today, [])
     for item in today_news:
@@ -152,10 +149,17 @@ def get_related_news(symbol):
 
 @app.route('/data.json')
 def get_data():
-    update_news()
-    rising, signal = analyze_stocks()
-    with open(NEWS_FILE, 'r') as f:
-        news = json.load(f)
+    # 빠른 테스트를 위해 update 뉴스는 주석처리 가능
+    try:
+        with open(NEWS_FILE, 'r', encoding='utf-8') as f:
+            news = json.load(f)
+    except:
+        news = {}
+
+    try:
+        rising, signal = analyze_stocks()
+    except:
+        rising, signal = [], []
 
     updated_time = datetime.utcnow().isoformat()
 
@@ -173,11 +177,11 @@ def delete_news():
     title = req.get('title')
     if not os.path.exists(NEWS_FILE):
         return jsonify({'error': 'no file'}), 404
-    with open(NEWS_FILE, 'r') as f:
+    with open(NEWS_FILE, 'r', encoding='utf-8') as f:
         data = json.load(f)
     if date in data:
         data[date] = [n for n in data[date] if n['title'] != title]
-        with open(NEWS_FILE, 'w') as f:
+        with open(NEWS_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return jsonify({'status': 'deleted'})
     return jsonify({'error': 'not found'}), 404
