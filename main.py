@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import json
 import os
 import requests
+from bs4 import BeautifulSoup
 from googletrans import Translator
 import pytz
 
@@ -22,8 +23,7 @@ NEWS_FILE = 'positive_news.json'
 SYMBOLS = [
     'nasdaq', 'fda', 'clinical trial', 'phase 1', 'phase 2', 'phase 3',
     'merger', 'approval', 'biotech', 'pharma', 'listing',
-    'acquisition', 'positive result', 'breakthrough',
-    '암치료', '신약 승인', '신약 성공', '상장 승인', '임상 성공'
+    'acquisition', 'positive result', 'breakthrough'
 ]
 
 STOCK_SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC']
@@ -39,6 +39,8 @@ def index():
 def is_positive_news(news):
     title = news.get('title', '').lower()
     content = news.get('content', '').lower()
+    if 'nasdaq' in title or 'nasdaq' in content:
+        return True
 
     positive_keywords = [
         'fda', 'approval', 'clinical', 'trial',
@@ -48,12 +50,10 @@ def is_positive_news(news):
         'launch', 'open', 'expand', 'expansion', 'event',
         'new technology', 'unveil', 'announce', 'release'
     ]
-
     exclude_keywords = [
         'crypto', 'bitcoin', 'ethereum',
         'lawsuit', 'china', 'hong kong', 'delisting', 'sec investigation'
     ]
-
     if not any(kw in title or kw in content for kw in positive_keywords):
         return False
     if any(kw in title or kw in content for kw in exclude_keywords):
@@ -63,7 +63,6 @@ def is_positive_news(news):
 
 def fetch_news(query, api_key):
     url = f'https://newsdata.io/api/1/news?apikey={api_key}&q={query}&country=us&language=en&category=business'
-    print(f"[DEBUG] {query} 뉴스 요청 URL: {url}")
     try:
         res = requests.get(url, timeout=10)
         res.raise_for_status()
@@ -95,7 +94,6 @@ def fetch_news(query, api_key):
         try:
             translated = translator.translate(title, dest='ko').text
         except Exception as e:
-            print(f"[WARN] 번역 실패: {e}")
             translated = title
 
         matched_symbol = ''
@@ -113,7 +111,48 @@ def fetch_news(query, api_key):
             'timestamp': kst_dt.strftime("%Y-%m-%d %H:%M:%S")
         })
 
-    print(f"[{query}] 수집된 뉴스 개수: {len(filtered)}")
+    return filtered
+
+def fetch_stocktitan():
+    url = "https://www.stocktitan.net/news/"
+    try:
+        res = requests.get(url, timeout=10)
+        soup = BeautifulSoup(res.text, "html.parser")
+        cards = soup.select('.news-card')
+    except Exception as e:
+        print(f"[ERROR] StockTitan 크롤링 실패: {e}")
+        return []
+
+    filtered = []
+    for card in cards:
+        try:
+            title_tag = card.select_one('.news-headline')
+            if not title_tag:
+                continue
+            title = title_tag.text.strip()
+            link = "https://www.stocktitan.net" + title_tag['href']
+
+            symbol_tag = card.select_one('.symbol')
+            matched_symbol = symbol_tag.text.strip() if symbol_tag else ''
+
+            time_tag = card.select_one('.news-date')
+            kst_dt = datetime.now(KST)
+            if time_tag:
+                time_str = time_tag.text.strip()
+                kst_dt = datetime.strptime(time_str, "%Y. %m. %d. %p %I:%M").replace(tzinfo=KST)
+
+            translated = translator.translate(title, dest='ko').text
+
+            filtered.append({
+                'title': translated,
+                'link': link,
+                'symbol': matched_symbol,
+                'time': kst_dt.strftime("%H:%M"),
+                'date': kst_dt.strftime("%Y-%m-%d"),
+                'timestamp': kst_dt.strftime("%Y-%m-%d %H:%M:%S")
+            })
+        except Exception as e:
+            continue
     return filtered
 
 def update_news():
@@ -142,6 +181,17 @@ def update_news():
                 data[date].append(item)
                 all_keys.add(uniq_key)
         api_key_index = (api_key_index + 1) % len(NEWS_API_KEYS)
+
+    # StockTitan 뉴스도 추가
+    titan_news = fetch_stocktitan()
+    for item in titan_news:
+        date = item.get("date")
+        if date not in data:
+            data[date] = []
+        uniq_key = item['title'] + item['link']
+        if uniq_key not in all_keys:
+            data[date].append(item)
+            all_keys.add(uniq_key)
 
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
