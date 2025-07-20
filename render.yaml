@@ -3,5 +3,5 @@ services:
     name: novaticker
     env: python
     buildCommand: ""
-    startCommand: python main.py
+    startCommand: gunicorn -w 1 -b 0.0.0.0:8080 main:app
     pythonVersion: 3.10.13
