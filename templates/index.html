@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NovaTicker 리치</title>
+  <style>
+    body { background: #111; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 0; }
+    h1 { font-size: 1.8em; margin: 20px 0; }
+    .tab { display: flex; justify-content: center; margin-bottom: 10px; }
+    .tab button { background: #333; border: none; padding: 10px 20px; color: white; font-size: 1em; cursor: pointer; }
+    .tab button.active { background: #00ffe4; color: black; font-weight: bold; }
+    .content { padding: 20px; }
+    .card { background: #222; margin: 10px auto; padding: 15px; border-radius: 10px; width: 90%; text-align: left; }
+    .date-title { background: #333; padding: 10px; margin: 20px auto 5px; width: 90%; border-radius: 8px; text-align: center; font-weight: bold; }
+    a { color: #00ffe4; text-decoration: none; }
+    .updated-time { color: #ccc; font-size: 0.9em; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <h1>📊 NovaTicker 리치</h1>
+  <div class="tab">
+    <button class="tablinks active" onclick="openTab(event, 'stocks')">📈 급등 종목</button>
+    <button class="tablinks" onclick="openTab(event, 'news')">📰 호재 뉴스</button>
+  </div>
+
+  <div id="stocks" class="content tabcontent" style="display: block;">
+    <div class="updated-time" id="stocksTime"></div>
+    <div id="stocksArea">⏳ 준비 중...</div>
+  </div>
+
+  <div id="news" class="content tabcontent" style="display: none;">
+    <div class="updated-time" id="newsTime"></div>
+    <div id="newsArea">⏳ 준비 중...</div>
+  </div>
+
+  <script>
+    function openTab(evt, tabName) {
+      let tabcontent = document.getElementsByClassName("tabcontent");
+      let tablinks = document.getElementsByClassName("tablinks");
+      for (let i = 0; i < tabcontent.length; i++) tabcontent[i].style.display = "none";
+      for (let i = 0; i < tablinks.length; i++) tablinks[i].classList.remove("active");
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.classList.add("active");
+    }
+
+    async function loadRisingStocks() {
+      try {
+        let res = await fetch("/rising_stocks.json");
+        let data = await res.json();
+        let html = "";
+
+        if (data.results.length === 0) {
+          html = "📭 급등 종목 없음";
+        } else {
+          data.results.forEach(item => {
+            html += `<div class="card">
+              <b>${item.ticker}</b> (${item.percent}%)<br/>
+              💵 ${item.open} → ${item.latest}<br/>
+              🔥 거래량: ${item.volume_now.toLocaleString()} (평균 ${item.volume_prev.toLocaleString()})<br/>`;
+            if (item.news && item.news.length > 0) {
+              html += `📰 관련 뉴스:<br/>`;
+              item.news.forEach(n => {
+                html += `<a href="${n.link}" target="_blank">- ${n.title}</a><br/>`;
+              });
+            }
+            html += `</div>`;
+          });
+        }
+        document.getElementById("stocksArea").innerHTML = html;
+        if (data.updated) document.getElementById("stocksTime").innerText = "⏰ 마지막 갱신: " + data.updated;
+      } catch (err) {
+        document.getElementById("stocksArea").innerHTML = "❌ 오류 발생";
+      }
+    }
+
+    async function loadPositiveNews() {
+      try {
+        let res = await fetch("/positive_news.json");
+        let data = await res.json();
+        let html = "";
+        let updatedText = data.updated || Object.keys(data).sort().reverse()[0] || "정보 없음";
+        delete data.updated;
+        document.getElementById("newsTime").innerText = "⏰ 마지막 갱신: " + updatedText;
+
+        if (Object.keys(data).length === 0) {
+          html = "📭 뉴스 없음";
+        } else {
+          const dates = Object.keys(data).sort().reverse();
+          dates.forEach(date => {
+            html += `<div class="date-title">📅 ${date}</div>`;
+            data[date].forEach(item => {
+              html += `<div class="card">
+                <a href="${item.link}" target="_blank">${item.title}</a><br/>
+                🔑 ${item.keyword || ""}</div>`;
+            });
+          });
+        }
+        document.getElementById("newsArea").innerHTML = html;
+      } catch (err) {
+        document.getElementById("newsArea").innerHTML = "❌ 뉴스 불러오기 실패";
+      }
+    }
+
+    loadRisingStocks();
+    loadPositiveNews();
+    setInterval(() => {
+      loadRisingStocks();
+      loadPositiveNews();
+    }, 5 * 60 * 1000);
+  </script>
+</body>
+</html>
