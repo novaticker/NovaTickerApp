@@ -95,10 +95,12 @@
 
   <div id="news" class="content">
     <div class="filter-buttons">
-      <button class="filter-button" onclick="filterNews(event, 'FDA')">🧪 FDA/임상</button>
-      <button class="filter-button" onclick="filterNews(event, '바이오')">🧬 바이오</button>
-      <button class="filter-button" onclick="filterNews(event, '반등')">📉 급락 후 반등</button>
-      <button class="filter-button" onclick="filterNews(event, '급등')">💥 급등 이슈</button>
+      <button class="filter-button" onclick="filterNews(event, 'fda')">🧪 FDA 승인 / 임상</button>
+      <button class="filter-button" onclick="filterNews(event, '바이오')">💊 바이오텍 / 제약</button>
+      <button class="filter-button" onclick="filterNews(event, 'ipo')">🆕 신규 상장 (IPO)</button>
+      <button class="filter-button" onclick="filterNews(event, 'merger')">🤝 인수합병 / 파트너십</button>
+      <button class="filter-button" onclick="filterNews(event, '투자')">💰 투자 유치 / 기관 매수</button>
+      <button class="filter-button" onclick="filterNews(event, '급등')">💥 급등 뉴스 / 폭등</button>
       <button class="filter-button" onclick="resetFilter()">❌ 초기화</button>
     </div>
     <div id="news-list">⏰ 뉴스 로딩 중...</div>
@@ -116,7 +118,7 @@
       document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
       e.target.classList.add('active');
       document.querySelectorAll('.news-item').forEach(item => {
-        item.style.display = item.innerText.includes(keyword) ? 'block' : 'none';
+        item.style.display = item.innerText.toLowerCase().includes(keyword.toLowerCase()) ? 'block' : 'none';
       });
     }
 
