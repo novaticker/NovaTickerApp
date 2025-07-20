@@ -87,6 +87,9 @@ def fetch_news(query, api_key):
                 matched_symbol = sym
                 break
 
+        if not matched_symbol:
+            matched_symbol = "N/A"
+
         filtered.append({
             'title': translated,
             'link': link,
@@ -122,6 +125,9 @@ def crawl_stocktitan():
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
+
+            if not symbol:
+                symbol = "N/A"
 
             news_list.append({
                 'title': translated,
@@ -217,7 +223,7 @@ def get_related_news(symbol):
     today_news = data.get(today, [])
     for item in today_news:
         news_symbol = item.get('symbol', '').lower()
-        if symbol.lower() in item.get('title', '').lower() or symbol.lower() == news_symbol:
+        if symbol.lower() == news_symbol or symbol.lower() in item.get('title', '').lower():
             return item
     return None
 
