@@ -90,14 +90,14 @@
       color: #8b949e;
       margin-top: 8px;
       display: flex;
-      justify-content: flex-end;
+      justify-content: flex-start;
       gap: 8px;
       flex-wrap: wrap;
     }
     .delete-btn {
       position: absolute;
-      top: 10px;
-      right: 10px;
+      top: 12px;
+      right: 12px;
       background: transparent;
       border: none;
       color: #f85149;
@@ -206,14 +206,14 @@
         document.getElementById('rising-list').innerHTML = `<p>⏰ 마지막 갱신: ${timeStr}</p>` +
           (rising.length ? rising.map(i => {
             const mark = i.news ? '⭐' : '';
-            return `<div>${i.symbol} ${mark} ${i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : ''}</div>`;
+            return `<div>${i.symbol} ${mark}${i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : ''}</div>`;
           }).join('<hr>') : '📢 급등 종목 없음');
 
         const signal = data.signal || [];
         document.getElementById('signal-list').innerHTML = `<p>⏰ 마지막 갱신: ${timeStr}</p>` +
           (signal.length ? signal.map(i => {
             const mark = i.news ? '⭐' : '';
-            return `<div>${i.symbol} ${mark} ${i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : ''}</div>`;
+            return `<div>${i.symbol} ${mark}${i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : ''}</div>`;
           }).join('<hr>') : '📢 조짐 종목 없음');
 
         const newsData = data.positive_news || {};
@@ -240,7 +240,6 @@
           });
         }
         document.getElementById('news-list').innerHTML = newsHTML;
-
       } catch (e) {
         console.error('❌ 데이터 불러오기 실패:', e);
         document.getElementById('rising-list').innerText = '⚠️ 급등 종목 로딩 실패';
