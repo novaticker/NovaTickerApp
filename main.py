@@ -15,9 +15,10 @@ NEWS_API_KEY = 'pub_af7cbc0a338a4f64aeba8b044a544dca'
 NEWS_FILE = 'positive_news.json'
 
 SYMBOLS = [
-    'APLD', 'CYCC', 'LMFA', 'CW', 'SAIC',
-    'nasdaq', 'us stocks', 'fda', 'ipo',
-    'bitcoin', 'ethereum', 'crypto', 'coinbase', 'robinhood'
+    'nasdaq', 'fda', 'clinical trial', 'phase 1', 'phase 2', 'phase 3',
+    'merger', 'approval', 'biotech', 'pharma', 'listing',
+    'acquisition', 'positive result', 'breakthrough',
+    '암치료', '신약 승인', '신약 성공', '상장 승인', '임상 성공'
 ]
 
 translator = Translator()
@@ -71,16 +72,17 @@ def fetch_news(query):
             'timestamp': kst_dt.strftime("%Y-%m-%d %H:%M:%S")
         })
 
+    print(f"[{query}] 수집된 뉴스 개수: {len(filtered)}")  # 로그 출력
     return filtered
 
 def update_news():
     if os.path.exists(NEWS_FILE):
-        with open(NEWS_FILE, 'r') as f:
+        with open(NEWS_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
     else:
         data = {}
 
-    all_titles = set()
+    all_keys = set()
     for sym in SYMBOLS:
         news_items = fetch_news(sym)
         for item in news_items:
@@ -89,9 +91,10 @@ def update_news():
                 continue
             if date not in data:
                 data[date] = []
-            if item['title'] not in all_titles:
+            uniq_key = item['title'] + item['link']
+            if uniq_key not in all_keys:
                 data[date].append(item)
-                all_titles.add(item['title'])
+                all_keys.add(uniq_key)
 
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
@@ -149,7 +152,6 @@ def get_related_news(symbol):
 
 @app.route('/data.json')
 def get_data():
-    # 빠른 테스트를 위해 update 뉴스는 주석처리 가능
     try:
         with open(NEWS_FILE, 'r', encoding='utf-8') as f:
             news = json.load(f)
