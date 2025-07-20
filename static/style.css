@@ -1,0 +1,59 @@
+body {
+  background-color: #111;
+  color: white;
+  font-family: sans-serif;
+  text-align: center;
+  margin: 0;
+  padding: 0;
+}
+h1 {
+  font-size: 1.8em;
+  margin: 20px 0;
+}
+.tab {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.tab button {
+  background-color: #333;
+  border: none;
+  padding: 10px 20px;
+  color: white;
+  font-size: 1em;
+  cursor: pointer;
+}
+.tab button.active {
+  background-color: #00ffe4;
+  color: black;
+  font-weight: bold;
+}
+.content {
+  padding: 20px;
+}
+.card {
+  background-color: #222;
+  margin: 10px auto;
+  padding: 15px;
+  border-radius: 10px;
+  width: 90%;
+  text-align: left;
+}
+.date-title {
+  background-color: #333;
+  padding: 10px;
+  margin: 20px auto 5px;
+  width: 90%;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+}
+a {
+  color: #00ffe4;
+  text-decoration: none;
+}
+.updated-time {
+  color: #ccc;
+  font-size: 0.9em;
+  margin-bottom: 10px;
+}
