@@ -1,112 +1,119 @@
+const tabs = document.querySelectorAll('.tab-btn');
+const contents = document.querySelectorAll('.content');
+const newsContainer = document.getElementById('news');
+const lastUpdated = document.getElementById('lastUpdated');
+const filterButtons = document.querySelectorAll('.filter-btn');
+
+let allNews = {};
 let currentTab = 'rising';
-let rawData = null;
 
-document.addEventListener('DOMContentLoaded', async () => {
-  const res = await fetch('/data.json');
-  const data = await res.json();
-  rawData = data;
-  document.getElementById('date').textContent = '📅 ' + new Date().toISOString().slice(0, 10);
-  updateTab('rising');
-
-  document.getElementById('tab-rising').addEventListener('click', () => updateTab('rising'));
-  document.getElementById('tab-signal').addEventListener('click', () => updateTab('signal'));
-  document.getElementById('tab-news').addEventListener('click', () => updateTab('news'));
-
-  // 뉴스 필터 버튼 이벤트 등록
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const keyword = btn.dataset.keyword;
-      if (keyword === 'reset') {
-        renderNews(rawData.positive_news);
-      } else {
-        const filtered = {};
-        for (const date in rawData.positive_news) {
-          filtered[date] = rawData.positive_news[date].filter(n =>
-            n.title.includes(keyword)
-          );
-        }
-        renderNews(filtered);
-      }
-    });
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentTab = tab.dataset.tab;
+    showContent();
   });
 });
 
-function updateTab(tab) {
-  currentTab = tab;
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.classList.remove('active');
-  });
-  document.getElementById(`tab-${tab}`).classList.add('active');
-
-  document.getElementById('rising-section').style.display = tab === 'rising' ? 'block' : 'none';
-  document.getElementById('signal-section').style.display = tab === 'signal' ? 'block' : 'none';
-  document.getElementById('news-section').style.display = tab === 'news' ? 'block' : 'none';
-
-  if (tab === 'rising') renderStockList('rising');
-  if (tab === 'signal') renderStockList('signal');
-  if (tab === 'news') renderNews(rawData.positive_news);
-}
-
-function renderStockList(type) {
-  const list = rawData[type];
-  const container = document.getElementById(`${type}-list`);
-  container.innerHTML = '';
-
-  if (list.length === 0) {
-    container.innerHTML = '<p>📛 종목 없음</p>';
-    return;
-  }
-
-  list.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'stock-item';
-    let content = `📈 <b>${item.symbol}</b> (${item.change}%) 거래량: ${item.volume.toLocaleString()}`;
-    if (item.news) {
-      content += ` <a href="${item.news.link}" target="_blank">⭐ ${item.news.title}</a>`;
+filterButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const filter = btn.dataset.filter;
+    if (filter === 'reset') {
+      showContent();
+    } else {
+      showFilteredNews(filter);
     }
-    div.innerHTML = content;
-    container.appendChild(div);
   });
+});
+
+function showContent() {
+  contents.forEach(c => c.style.display = 'none');
+  if (currentTab === 'news') {
+    document.getElementById('filter').style.display = 'block';
+    newsContainer.style.display = 'block';
+    displayNews(allNews);
+  } else {
+    document.getElementById('filter').style.display = 'none';
+    newsContainer.style.display = 'none';
+    document.getElementById(currentTab).style.display = 'block';
+  }
 }
 
-function renderNews(newsData) {
-  const container = document.getElementById('news-list');
-  container.innerHTML = '';
-  let hasNews = false;
+function showFilteredNews(keyword) {
+  const filtered = {};
+  for (const date in allNews) {
+    filtered[date] = allNews[date].filter(n => n.title.includes(keyword));
+  }
+  displayNews(filtered);
+}
 
-  for (const date in newsData) {
-    if (!newsData[date] || newsData[date].length === 0) continue;
-    hasNews = true;
-
-    const dateTitle = document.createElement('h4');
-    dateTitle.textContent = `🗓 ${date}`;
-    container.appendChild(dateTitle);
-
-    newsData[date].forEach(item => {
+function displayNews(data) {
+  newsContainer.innerHTML = '';
+  const dates = Object.keys(data).sort((a, b) => b.localeCompare(a));
+  dates.forEach(date => {
+    const section = document.createElement('div');
+    section.innerHTML = `<h3>📅 ${date}</h3>`;
+    data[date].forEach(item => {
       const div = document.createElement('div');
       div.className = 'news-item';
       div.innerHTML = `
         <a href="${item.link}" target="_blank">📰 ${item.title}</a>
-        <button class="delete-btn" onclick="deleteNews('${date}', \`${item.title}\`)">🗑️</button>
+        <button class="delete-btn" data-date="${date}" data-title="${item.title}">🗑️</button>
       `;
-      container.appendChild(div);
+      section.appendChild(div);
     });
-  }
-
-  if (!hasNews) {
-    container.innerHTML = '<p>🔍 뉴스 없음</p>';
-  }
-}
-
-async function deleteNews(date, title) {
-  const res = await fetch('/delete_news', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date, title })
+    newsContainer.appendChild(section);
   });
 
-  if (res.ok) {
-    rawData.positive_news[date] = rawData.positive_news[date].filter(n => n.title !== title);
-    renderNews(rawData.positive_news);
-  }
+  document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const date = btn.dataset.date;
+      const title = btn.dataset.title;
+      fetch('https://novaticker-api.onrender.com/delete_news', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({date, title})
+      }).then(() => {
+        btn.parentElement.remove();
+      });
+    });
+  });
 }
+
+function loadData() {
+  fetch('https://novaticker-api.onrender.com/data.json')
+    .then(res => res.json())
+    .then(data => {
+      const rising = document.getElementById('rising');
+      const signal = document.getElementById('signal');
+      rising.innerHTML = '';
+      signal.innerHTML = '';
+      allNews = data.positive_news;
+
+      data.rising.forEach(item => {
+        rising.innerHTML += formatItem(item);
+      });
+      data.signal.forEach(item => {
+        signal.innerHTML += formatItem(item);
+      });
+
+      if (currentTab === 'news') {
+        displayNews(allNews);
+      }
+
+      lastUpdated.textContent = `🕒 마지막 갱신: 불러오는 중...`;
+      setTimeout(() => {
+        const now = new Date();
+        lastUpdated.textContent = `🕒 마지막 갱신: ${now.toLocaleString()}`;
+      }, 300);
+    });
+}
+
+function formatItem(item) {
+  const newsPart = item.news ? `⭐ <a href="${item.news.link}" target="_blank">${item.news.title}</a>` : '';
+  return `<div>📈 ${item.symbol} (${item.change}% ↑) ${newsPart}</div>`;
+}
+
+loadData();
+setInterval(loadData, 180000); // 3분마다 갱신
