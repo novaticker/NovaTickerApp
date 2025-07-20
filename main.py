@@ -175,8 +175,11 @@ def update_news():
 
 @app.route('/update_news')
 def trigger_update_news():
-    update_news()
-    return '✅ 뉴스 업데이트 완료'
+    try:
+        update_news()
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 def analyze_stocks():
     rising, signal = [], []
