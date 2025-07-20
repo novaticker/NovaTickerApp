@@ -1,98 +1,156 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>📊 NovaTicker 리치</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NovaTicker 리치</title>
   <style>
     body {
       background-color: #111;
       color: white;
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
       text-align: center;
       padding: 10px;
     }
     h1 {
-      margin-bottom: 5px;
+      font-size: 28px;
+      margin-bottom: 10px;
     }
-    .buttons {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin: 10px 0;
-      gap: 8px;
-    }
-    .buttons button {
-      padding: 8px 12px;
+    button {
+      margin: 5px;
+      padding: 10px 15px;
+      font-size: 16px;
       border: none;
-      border-radius: 6px;
-      font-size: 14px;
+      border-radius: 8px;
       cursor: pointer;
-      background-color: #333;
+    }
+    .tab {
+      background-color: #444;
       color: white;
     }
-    .buttons button.active {
-      background-color: #06b6d4;
+    .active-tab {
+      background-color: #0af;
+    }
+    .filter-btn {
+      background-color: #222;
+      color: white;
+    }
+    .reset-btn {
+      background-color: #c00;
+      color: white;
     }
     .news {
-      margin-top: 20px;
+      background-color: #222;
+      margin: 10px auto;
+      padding: 10px;
+      border-radius: 10px;
+      max-width: 500px;
       text-align: left;
-      max-width: 800px;
-      margin-left: auto;
-      margin-right: auto;
     }
-    .news-date {
-      font-weight: bold;
+    .date-header {
       font-size: 20px;
       margin-top: 20px;
     }
-    .news-item {
-      background: #222;
-      padding: 10px;
-      margin: 8px 0;
-      border-radius: 6px;
-      position: relative;
-    }
     .delete-btn {
-      position: absolute;
-      right: 10px;
-      top: 10px;
-      background: #ff4d4d;
+      float: right;
+      background: transparent;
       border: none;
-      border-radius: 4px;
-      color: white;
+      color: #f55;
+      font-size: 18px;
       cursor: pointer;
-      font-size: 12px;
-      padding: 2px 6px;
-    }
-    .last-updated {
-      font-size: 14px;
-      color: #ccc;
-      margin: 5px 0 15px;
     }
   </style>
 </head>
 <body>
   <h1>📊 NovaTicker 리치</h1>
-  <div class="buttons">
-    <button onclick="showTab('rising')">📈 급등 종목</button>
-    <button onclick="showTab('warning')">⚠️ 급등 조짐</button>
-    <button onclick="showTab('news')">📰 호재 뉴스</button>
+  
+  <!-- 탭 메뉴 -->
+  <div>
+    <button class="tab active-tab" onclick="showTab('rising')">📈 급등 종목</button>
+    <button class="tab" onclick="showTab('potential')">⚠️ 급등 조짐</button>
+    <button class="tab" onclick="showTab('news')">📰 호재 뉴스</button>
   </div>
 
-  <div class="last-updated">⏱️ 마지막 갱신: <span id="lastUpdated">불러오는 중...</span></div>
+  <div id="last-updated" style="margin:10px;">⏰ 마지막 갱신: 불러오는 중...</div>
 
-  <div class="buttons">
-    <button onclick="filterBy('fda')">🧪 FDA/임상</button>
-    <button onclick="filterBy('bio')">🧬 바이오</button>
-    <button onclick="filterBy('rebound')">📉 급락 후 반등</button>
-    <button onclick="filterBy('spike')">💥 급등 이슈</button>
-    <button onclick="resetFilter()">❌ 초기화</button>
+  <!-- 필터 버튼 영역 (뉴스 탭에만 표시) -->
+  <div id="filter-buttons" style="display: none;">
+    <button class="filter-btn" onclick="filterNews('fda')">🧪 FDA/임상</button>
+    <button class="filter-btn" onclick="filterNews('bio')">🧬 바이오</button>
+    <button class="filter-btn" onclick="filterNews('rebound')">📉 급락 후 반등</button>
+    <button class="filter-btn" onclick="filterNews('spike')">💥 급등 이슈</button>
+    <button class="reset-btn" onclick="resetFilter()">❌ 초기화</button>
   </div>
 
-  <div id="content" class="news"></div>
+  <!-- 데이터 표시 영역 -->
+  <div id="content-area"></div>
 
-  <script src="/rising_stocks.js"></script>
-  <script src="/script.js"></script>
+  <script>
+    let allData = {};
+    let activeTab = 'rising';
+
+    function showTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll('.tab').forEach(btn => btn.classList.remove('active-tab'));
+      event.target.classList.add('active-tab');
+      document.getElementById("filter-buttons").style.display = (tab === 'news') ? "block" : "none";
+      renderData();
+    }
+
+    function filterNews(type) {
+      renderData(type);
+    }
+
+    function resetFilter() {
+      renderData();
+    }
+
+    function deleteNews(date, idx) {
+      fetch(`/delete_news?date=${date}&index=${idx}`, { method: 'DELETE' })
+        .then(() => fetchData());
+    }
+
+    function renderData(filterType = null) {
+      const area = document.getElementById('content-area');
+      area.innerHTML = '';
+      if (!allData[activeTab]) {
+        area.innerHTML = '<p>⏳ 데이터 로딩 중...</p>';
+        return;
+      }
+
+      Object.entries(allData[activeTab]).forEach(([date, items]) => {
+        const dateDiv = document.createElement("div");
+        dateDiv.className = "date-header";
+        dateDiv.innerHTML = `📅 ${date}`;
+        area.appendChild(dateDiv);
+
+        items.forEach((item, idx) => {
+          if (filterType && item.type !== filterType) return;
+
+          const div = document.createElement("div");
+          div.className = "news";
+          div.innerHTML = `
+            ${item.title.includes("http") ? `<a href="${item.link}" target="_blank">${item.title}</a>` : item.title}
+            ${item.has_news ? "⭐" : ""}
+            <button class="delete-btn" onclick="deleteNews('${date}', ${idx})">🗑</button>
+          `;
+          area.appendChild(div);
+        });
+      });
+    }
+
+    function fetchData() {
+      fetch('/data.json')
+        .then(res => res.json())
+        .then(data => {
+          allData = data;
+          document.getElementById("last-updated").innerText = "⏰ 마지막 갱신: " + (data.updated || '');
+          renderData();
+        });
+    }
+
+    fetchData();
+    setInterval(fetchData, 1000 * 60); // 1분마다 자동 갱신
+  </script>
 </body>
 </html>
