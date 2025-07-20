@@ -1,94 +1,132 @@
-function openTab(evt, tabName) {
-  let tabcontent = document.getElementsByClassName("tabcontent");
-  let tablinks = document.getElementsByClassName("tablinks");
-  for (let i = 0; i < tabcontent.length; i++) {
-    tabcontent[i].style.display = "none";
-  }
-  for (let i = 0; i < tablinks.length; i++) {
-    tablinks[i].classList.remove("active");
-  }
-  document.getElementById(tabName).style.display = "block";
-  evt.currentTarget.classList.add("active");
-}
+// 탭 전환
+document.querySelectorAll(".tab-button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
 
-async function loadRisingStocks() {
-  try {
-    let res = await fetch("/rising_stocks.json");
-    let data = await res.json();
-    let html = "";
+    const tab = btn.getAttribute("data-tab");
+    document.querySelectorAll(".section").forEach(sec => sec.classList.add("hidden"));
+    document.getElementById(`${tab}-section`).classList.remove("hidden");
+  });
+});
 
-    if (data.results.length === 0) {
-      html = "📭 급등 종목 없음";
+// 급등 종목 로드
+fetch("/rising_stocks.json")
+  .then(res => res.json())
+  .then(data => {
+    const list = document.getElementById("rising-list");
+    const lastUpdated = document.getElementById("last-updated");
+    if (data.length === 0) {
+      list.innerHTML = "<li>📯 감지된 종목 없음</li>";
     } else {
-      data.results.forEach(item => {
-        html += `<div class="card">
-          <b>${item.ticker}</b> (${item.percent}%)<br/>
-          💵 ${item.open} → ${item.latest}<br/>
-          🔥 거래량: ${item.volume_now.toLocaleString()} (평균 ${item.volume_prev.toLocaleString()})<br/>`;
-
-        if (item.news && item.news.length > 0) {
-          html += `📰 관련 뉴스:<br/>`;
-          item.news.forEach(n => {
-            html += `<a href="${n.link}" target="_blank">- ${n.title}</a><br/>`;
-          });
+      data.forEach(item => {
+        const li = document.createElement("li");
+        const star = item.news ? " ⭐" : "";
+        li.textContent = `${item.ticker}${star} - ${item.reason}`;
+        if (item.news) {
+          const newsLink = document.createElement("a");
+          newsLink.href = item.news.link;
+          newsLink.textContent = ` 🔗 ${item.news.title}`;
+          newsLink.target = "_blank";
+          li.appendChild(document.createElement("br"));
+          li.appendChild(newsLink);
         }
-
-        html += `</div>`;
+        list.appendChild(li);
       });
     }
+    lastUpdated.textContent = data.length ? data[0].timestamp : "정보 없음";
+  });
 
-    document.getElementById("stocksArea").innerHTML = html;
-    if (data.updated) {
-      document.getElementById("stocksTime").innerText = "⏰ 마지막 갱신: " + data.updated;
-    }
-  } catch (err) {
-    document.getElementById("stocksArea").innerHTML = "❌ 오류 발생";
-  }
-}
-
-async function loadPositiveNews() {
-  try {
-    let res = await fetch("/positive_news.json");
-    let data = await res.json();
-    let html = "";
-
-    let updatedText = "";
-
-    if (data.updated) {
-      updatedText = data.updated;
-      delete data.updated;
+// 급등 조짐 종목 로드
+fetch("/preparing_stocks.json")
+  .then(res => res.json())
+  .then(data => {
+    const list = document.getElementById("preparing-list");
+    const lastUpdated = document.getElementById("last-updated-pre");
+    if (data.length === 0) {
+      list.innerHTML = "<li>📯 감지된 종목 없음</li>";
     } else {
-      updatedText = Object.keys(data).sort().reverse()[0] || "정보 없음";
+      data.forEach(item => {
+        const li = document.createElement("li");
+        const star = item.news ? " ⭐" : "";
+        li.textContent = `${item.ticker}${star} - ${item.reason}`;
+        if (item.news) {
+          const newsLink = document.createElement("a");
+          newsLink.href = item.news.link;
+          newsLink.textContent = ` 🔗 ${item.news.title}`;
+          newsLink.target = "_blank";
+          li.appendChild(document.createElement("br"));
+          li.appendChild(newsLink);
+        }
+        list.appendChild(li);
+      });
     }
+    lastUpdated.textContent = data.length ? data[0].timestamp : "정보 없음";
+  });
 
-    document.getElementById("newsTime").innerText = "⏰ 마지막 갱신: " + updatedText;
+// 뉴스 불러오기
+let originalNewsData = {};
 
-    if (Object.keys(data).length === 0) {
-      html = "📭 뉴스 없음";
-    } else {
-      const dates = Object.keys(data).sort().reverse();
-      dates.forEach(date => {
-        html += `<div class="date-title">📅 ${date}</div>`;
-        data[date].forEach(item => {
-          html += `<div class="card">
-            <a href="${item.link}" target="_blank">${item.title}</a><br/>
-            🔑 ${item.keyword || ""}</div>`;
+fetch("/positive_news.json")
+  .then(res => res.json())
+  .then(news => {
+    originalNewsData = news;
+    displayNews(news);
+  });
+
+function displayNews(newsData) {
+  const container = document.getElementById("news-list");
+  container.innerHTML = "";
+  Object.keys(newsData).reverse().forEach(date => {
+    const dateBox = document.createElement("div");
+    dateBox.innerHTML = `<h3>🗓️ ${date}</h3>`;
+    newsData[date].forEach((n, idx) => {
+      const item = document.createElement("div");
+      item.className = "news-item";
+      const title = document.createElement("a");
+      title.href = n.link;
+      title.target = "_blank";
+      title.innerText = "📰 " + n.title;
+      const delBtn = document.createElement("button");
+      delBtn.innerText = "🗑️";
+      delBtn.className = "delete-btn";
+      delBtn.onclick = () => {
+        fetch(`/delete_news?date=${date}&index=${idx}`).then(() => {
+          location.reload();
         });
-      });
-    }
-
-    document.getElementById("newsArea").innerHTML = html;
-  } catch (err) {
-    document.getElementById("newsArea").innerHTML = "❌ 뉴스 불러오기 실패";
-  }
+      };
+      item.appendChild(title);
+      item.appendChild(delBtn);
+      item.setAttribute("data-title", n.title.toLowerCase());
+      dateBox.appendChild(item);
+    });
+    container.appendChild(dateBox);
+  });
 }
 
-// 최초 실행
-loadRisingStocks();
-loadPositiveNews();
+// 필터 버튼 기능
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const type = btn.dataset.type;
+    const newsList = document.querySelectorAll(".news-item");
 
-// 5분마다 자동 새로고침
-setInterval(() => {
-  loadRisingStocks();
-  loadPositiveNews();
-}, 5 * 60 * 1000);
+    if (btn.classList.contains("reset")) {
+      newsList.forEach(n => n.style.display = "block");
+      return;
+    }
+
+    newsList.forEach(n => {
+      const title = n.getAttribute("data-title");
+      if (
+        (type === "fda" && /fda|임상|clinical/.test(title)) ||
+        (type === "bio" && /바이오|제약|헬스케어/.test(title)) ||
+        (type === "rebound" && /반등|급락 후/.test(title)) ||
+        (type === "soaring" && /급등|폭등|상한가/.test(title))
+      ) {
+        n.style.display = "block";
+      } else {
+        n.style.display = "none";
+      }
+    });
+  });
+});
