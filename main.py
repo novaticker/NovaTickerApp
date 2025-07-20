@@ -31,21 +31,17 @@ def index():
 def is_positive_news(news):
     title = news.get('title', '').lower()
     content = news.get('content', '').lower()
-
     positive_keywords = [
-        'fda', 'approval', 'clinical', 'trial',
-        'biotech', 'pharma', 'ipo', 'listing',
-        'merger', 'acquisition', 'partnership', 'investment',
-        'skyrocket', 'surge', 'breakout', 'jump',
+        'fda', 'approval', 'clinical', 'trial', 'biotech', 'pharma',
+        'ipo', 'listing', 'merger', 'acquisition', 'partnership',
+        'investment', 'skyrocket', 'surge', 'breakout', 'jump',
         'launch', 'open', 'expand', 'expansion', 'event',
         'new technology', 'unveil', 'announce', 'release'
     ]
-
     exclude_keywords = [
         'crypto', 'bitcoin', 'ethereum',
         'lawsuit', 'china', 'hong kong', 'delisting', 'sec investigation'
     ]
-
     if not any(kw in title or kw in content for kw in positive_keywords):
         return False
     if any(kw in title or kw in content for kw in exclude_keywords):
@@ -122,8 +118,13 @@ def crawl_stocktitan():
                 link = 'https://www.stocktitan.net' + link
 
             kst_dt = datetime.now(KST)
+            try:
+                translated = translator.translate(title, dest='ko').text
+            except:
+                translated = title
+
             news_list.append({
-                'title': title,
+                'title': translated,
                 'link': link,
                 'symbol': symbol,
                 'time': kst_dt.strftime('%H:%M'),
@@ -147,7 +148,6 @@ def update_news():
         for item in date_items:
             all_keys.add(item['title'] + item['link'])
 
-    # API 뉴스
     api_key_index = 0
     for query in ['nasdaq', 'fda', 'biotech', 'pharma', 'ipo', 'merger', 'investment']:
         news_items = fetch_news(query, NEWS_API_KEYS[api_key_index])
@@ -159,7 +159,6 @@ def update_news():
                 all_keys.add(uniq)
         api_key_index = (api_key_index + 1) % len(NEWS_API_KEYS)
 
-    # StockTitan 뉴스
     titan_news = crawl_stocktitan()
     for item in titan_news:
         date = item['date']
