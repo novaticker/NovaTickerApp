@@ -1,3 +1,4 @@
+```python
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 import yfinance as yf
@@ -41,19 +42,19 @@ def is_positive_news(news):
     content = news.get('content', '').lower()
 
     positive_keywords = [
-        'fda', 'clinical', 'approval', 'merger', 'acquisition',
-        'investment', 'partnership', 'ipo', 'listing',
-        'breakthrough', 'surge', 'skyrocket'
+        'fda', 'approval', 'clinical', 'trial',
+        'biotech', 'pharma', 'ipo', 'listing',
+        'merger', 'acquisition', 'partnership', 'investment',
+        'skyrocket', 'surge', 'breakout', 'jump'
     ]
     exclude_keywords = [
-        'crypto', 'ethereum', 'bitcoin',
-        'lawsuit', 'sec investigation', 'delisting'
+        'crypto', 'bitcoin', 'ethereum', 'lawsuit',
+        'china', 'hong kong', 'delisting', 'sec investigation'
     ]
+
     if not any(kw in title or kw in content for kw in positive_keywords):
         return False
     if any(kw in title or kw in content for kw in exclude_keywords):
-        return False
-    if 'china' in title or 'china' in content:
         if not any(sym in title or sym in content for sym in ALLOWED_CHINA_SYMBOLS):
             return False
     return True
@@ -64,7 +65,6 @@ def fetch_news(query, api_key):
 
     try:
         res = requests.get(url).json()
-        print(f"[DEBUG] 응답 결과: {res}")
     except:
         return []
 
@@ -77,21 +77,16 @@ def fetch_news(query, api_key):
 
         title = a.get('title', '')
         link = a.get('link', '')
-
         if not title or not link or 'example.com' in link:
             continue
-
         if not is_positive_news(a):
             continue
 
         pub_utc = a.get('pubDate')
-        if pub_utc:
-            try:
-                utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S")
-                kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(KST)
-            except:
-                kst_dt = datetime.now(KST)
-        else:
+        try:
+            utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S")
+            kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(KST)
+        except:
             kst_dt = datetime.now(KST)
 
         try:
@@ -99,7 +94,6 @@ def fetch_news(query, api_key):
         except:
             translated = title
 
-        # 종목명 자동 추출
         matched_symbol = ''
         for sym in STOCK_SYMBOLS:
             if sym.lower() in title.lower():
@@ -131,7 +125,6 @@ def update_news():
             all_keys.add(item['title'] + item['link'])
 
     api_key_index = 0
-
     for sym in SYMBOLS:
         news_items = fetch_news(sym, NEWS_API_KEYS[api_key_index])
         for item in news_items:
@@ -159,14 +152,12 @@ def update_news():
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 def analyze_stocks():
-    rising = []
-    signal = []
+    rising, signal = [], []
     for sym in STOCK_SYMBOLS:
         try:
             df = yf.download(sym, period="5d", interval="1m")
             if len(df) < 4:
                 continue
-
             vol_now = df['Volume'].iloc[-1]
             vol_prev = df['Volume'].iloc[-4:-1].mean()
             price_now = df['Close'].iloc[-1]
@@ -207,14 +198,11 @@ def get_data():
             news = json.load(f)
     except:
         news = {}
-
     try:
         rising, signal = analyze_stocks()
     except:
         rising, signal = [], []
-
     updated_time = datetime.utcnow().isoformat()
-
     return jsonify({
         'rising': rising,
         'signal': signal,
@@ -245,3 +233,4 @@ def trigger_update_news():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
+```
