@@ -13,7 +13,7 @@ CORS(app)
 
 NEWS_API_KEY = 'pub_af7cbc0a338a4f64aeba8b044a544dca'
 NEWS_FILE = 'positive_news.json'
-SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC']  # ❌ 'EXPO' 제거
+SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC']
 translator = Translator()
 KST = pytz.timezone('Asia/Seoul')
 
@@ -28,6 +28,9 @@ def fetch_news(query):
     filtered = []
 
     for a in articles:
+        if not isinstance(a, dict):  # ← 오류 방지 핵심
+            continue
+
         title = a.get('title', '')
         link = a.get('link', '')
 
@@ -94,7 +97,7 @@ def analyze_stocks():
     signal = []
     for sym in SYMBOLS:
         try:
-            df = yf.download(sym, period="5m", interval="1m")
+            df = yf.download(sym, period="5d", interval="1m")  # ⚠️ '5m' → '5d' 로 수정
             if len(df) < 4:
                 continue
 
