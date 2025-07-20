@@ -13,7 +13,14 @@ CORS(app)
 
 NEWS_API_KEY = 'pub_af7cbc0a338a4f64aeba8b044a544dca'
 NEWS_FILE = 'positive_news.json'
-SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC']
+
+# 주식 종목 + 일반 키워드 (미국 주식 + 코인 포함)
+SYMBOLS = [
+    'APLD', 'CYCC', 'LMFA', 'CW', 'SAIC',
+    'nasdaq', 'us stocks', 'fda', 'ipo',
+    'bitcoin', 'ethereum', 'crypto', 'coinbase', 'robinhood'
+]
+
 translator = Translator()
 KST = pytz.timezone('Asia/Seoul')
 
@@ -23,7 +30,11 @@ def index():
 
 def fetch_news(query):
     url = f'https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&q={query}&country=us&language=en&category=business'
-    res = requests.get(url).json()
+    try:
+        res = requests.get(url).json()
+    except:
+        return []
+
     articles = res.get('results', [])
     filtered = []
 
@@ -47,8 +58,14 @@ def fetch_news(query):
         else:
             kst_dt = datetime.now(KST)
 
+        # 한국어 번역
+        try:
+            translated = translator.translate(title, dest='ko').text
+        except:
+            translated = title
+
         filtered.append({
-            'title': translator.translate(title, dest='ko').text,
+            'title': translated,
             'link': link,
             'symbol': query,
             'time': kst_dt.strftime("%H:%M"),
@@ -81,7 +98,7 @@ def update_news():
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
-    # 최신 3일치만 유지
+    # 3일 초과한 날짜 자동 제거
     cutoff = datetime.now(KST).replace(tzinfo=None) - timedelta(days=3)
     data = {
         date: items for date, items in data.items()
@@ -94,7 +111,7 @@ def update_news():
 def analyze_stocks():
     rising = []
     signal = []
-    for sym in SYMBOLS:
+    for sym in SYMBOLS[:5]:  # 종목만 분석
         try:
             df = yf.download(sym, period="5d", interval="1m")
             if len(df) < 4:
