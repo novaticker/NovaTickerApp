@@ -7,91 +7,132 @@
   <link rel="stylesheet" href="/static/style.css" />
   <style>
     body {
-      font-family: 'Arial', sans-serif;
-      background-color: #111;
-      color: white;
-      text-align: center;
-      padding: 20px;
+      font-family: 'Segoe UI', 'Pretendard', sans-serif;
+      background-color: #0d1117;
+      color: #e6edf3;
+      margin: 0;
+      padding: 0 20px;
     }
+
     h1 {
-      font-size: 2em;
+      text-align: center;
+      font-size: 2.2em;
+      padding: 20px 0;
+      color: #58a6ff;
+      border-bottom: 1px solid #30363d;
     }
-    .tabs { margin-top: 20px; }
+
+    .tabs {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
     .tab-button {
-      background-color: #333;
-      color: white;
-      border: none;
+      background: #21262d;
+      border: 1px solid #30363d;
       padding: 10px 18px;
-      margin: 4px;
-      border-radius: 10px;
-      font-size: 1em;
+      border-radius: 8px;
       cursor: pointer;
+      color: white;
+      font-weight: bold;
     }
-    .tab-button.active { background-color: #00c08b; }
-    .content { display: none; margin-top: 20px; }
-    .content.active { display: block; }
+
+    .tab-button.active {
+      background: #1f6feb;
+      border-color: #1f6feb;
+    }
+
+    .content {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .content.active {
+      display: block;
+    }
 
     .filter-buttons {
-      margin-top: 10px;
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 8px;
+      gap: 10px;
+      margin: 15px 0;
     }
+
     .filter-button {
-      background-color: #222;
-      color: white;
-      border: none;
+      background-color: #161b22;
+      border: 1px solid #30363d;
       padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 0.9em;
+      border-radius: 6px;
       cursor: pointer;
-      flex: 1 1 calc(33.333% - 16px);
-      max-width: calc(33.333% - 16px);
-      box-sizing: border-box;
+      font-size: 0.9em;
+      color: #e6edf3;
     }
+
     .filter-button.active {
       background-color: #f14e4e;
+      color: white;
+    }
+
+    .news-item {
+      background-color: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 10px auto;
+      max-width: 800px;
+      text-align: left;
+      position: relative;
+    }
+
+    .news-title a {
+      font-weight: bold;
+      color: #58a6ff;
+      text-decoration: none;
+    }
+
+    .news-title a:hover {
+      text-decoration: underline;
+    }
+
+    .news-meta {
+      font-size: 0.85em;
+      color: #8b949e;
+      margin-top: 5px;
+      text-align: right;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: transparent;
+      border: none;
+      color: #f85149;
+      font-size: 1.2em;
+      cursor: pointer;
+    }
+
+    h3 {
+      text-align: left;
+      margin-left: 10%;
+      margin-top: 40px;
+      color: #c9d1d9;
+      border-bottom: 1px solid #30363d;
+      padding-bottom: 5px;
+      width: 80%;
     }
 
     @media (max-width: 600px) {
       .filter-button {
-        flex: 1 1 calc(50% - 16px);
-        max-width: calc(50% - 16px);
+        flex: 1 1 45%;
       }
-    }
-
-    .news-item {
-      margin: 10px auto;
-      max-width: 90%;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 10px;
-      background-color: #1a1a1a;
-      text-align: left;
-    }
-    .delete-btn {
-      background: none;
-      border: none;
-      color: #f44336;
-      font-size: 1.2em;
-      float: right;
-      cursor: pointer;
-    }
-    .news-title {
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-    .news-meta {
-      font-size: 0.85em;
-      color: #aaa;
-      text-align: right;
-      margin-top: 5px;
-    }
-    h3 {
-      margin-top: 30px;
-      text-align: left;
-      margin-left: 5%;
+      .news-item {
+        padding: 12px;
+      }
     }
   </style>
 </head>
