@@ -19,18 +19,10 @@ NEWS_API_KEYS = [
 ]
 
 NEWS_FILE = 'positive_news.json'
-
-SYMBOLS = [
-    'nasdaq', 'fda', 'clinical trial', 'phase 1', 'phase 2', 'phase 3',
-    'merger', 'approval', 'biotech', 'pharma', 'listing',
-    'acquisition', 'positive result', 'breakthrough'
-]
-
 STOCK_SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC']
 ALLOWED_CHINA_SYMBOLS = ['nio', 'baba', 'bidu', 'jd']
-
-translator = Translator()
 KST = pytz.timezone('Asia/Seoul')
+translator = Translator()
 
 @app.route('/')
 def index():
@@ -39,8 +31,6 @@ def index():
 def is_positive_news(news):
     title = news.get('title', '').lower()
     content = news.get('content', '').lower()
-    if 'nasdaq' in title or 'nasdaq' in content:
-        return True
 
     positive_keywords = [
         'fda', 'approval', 'clinical', 'trial',
@@ -50,10 +40,12 @@ def is_positive_news(news):
         'launch', 'open', 'expand', 'expansion', 'event',
         'new technology', 'unveil', 'announce', 'release'
     ]
+
     exclude_keywords = [
         'crypto', 'bitcoin', 'ethereum',
         'lawsuit', 'china', 'hong kong', 'delisting', 'sec investigation'
     ]
+
     if not any(kw in title or kw in content for kw in positive_keywords):
         return False
     if any(kw in title or kw in content for kw in exclude_keywords):
@@ -67,24 +59,21 @@ def fetch_news(query, api_key):
         res = requests.get(url, timeout=10)
         res.raise_for_status()
         data = res.json()
-    except Exception as e:
-        print(f"[ERROR] 뉴스 요청 실패: {e}")
+    except:
         return []
 
     articles = data.get('results', [])
     filtered = []
 
     for a in articles:
-        if not isinstance(a, dict):
-            continue
         title = a.get('title', '')
         link = a.get('link', '')
-        if not title or not link or 'example.com' in link:
+        pub_utc = a.get('pubDate')
+        if not title or not link or not pub_utc:
             continue
         if not is_positive_news(a):
             continue
 
-        pub_utc = a.get('pubDate')
         try:
             utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S")
             kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(KST)
@@ -93,7 +82,7 @@ def fetch_news(query, api_key):
 
         try:
             translated = translator.translate(title, dest='ko').text
-        except Exception as e:
+        except:
             translated = title
 
         matched_symbol = ''
@@ -106,54 +95,45 @@ def fetch_news(query, api_key):
             'title': translated,
             'link': link,
             'symbol': matched_symbol,
-            'time': kst_dt.strftime("%H:%M"),
-            'date': kst_dt.strftime("%Y-%m-%d"),
-            'timestamp': kst_dt.strftime("%Y-%m-%d %H:%M:%S")
+            'time': kst_dt.strftime('%H:%M'),
+            'date': kst_dt.strftime('%Y-%m-%d'),
+            'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S')
         })
 
     return filtered
 
-def fetch_stocktitan():
-    url = "https://www.stocktitan.net/news/"
+def crawl_stocktitan():
+    url = 'https://www.stocktitan.net/news/'
     try:
         res = requests.get(url, timeout=10)
-        soup = BeautifulSoup(res.text, "html.parser")
-        cards = soup.select('.news-card')
-    except Exception as e:
-        print(f"[ERROR] StockTitan 크롤링 실패: {e}")
-        return []
-
-    filtered = []
-    for card in cards:
-        try:
-            title_tag = card.select_one('.news-headline')
-            if not title_tag:
+        soup = BeautifulSoup(res.text, 'html.parser')
+        news_blocks = soup.select('.news-row')
+        news_list = []
+        for block in news_blocks:
+            title_tag = block.select_one('.news-row__title')
+            meta_tag = block.select_one('.news-row__publisher')
+            if not title_tag or not meta_tag:
                 continue
+            link = title_tag.get('href')
             title = title_tag.text.strip()
-            link = "https://www.stocktitan.net" + title_tag['href']
+            symbol = meta_tag.text.strip().split()[0].replace(':', '')
 
-            symbol_tag = card.select_one('.symbol')
-            matched_symbol = symbol_tag.text.strip() if symbol_tag else ''
+            if not link.startswith('http'):
+                link = 'https://www.stocktitan.net' + link
 
-            time_tag = card.select_one('.news-date')
             kst_dt = datetime.now(KST)
-            if time_tag:
-                time_str = time_tag.text.strip()
-                kst_dt = datetime.strptime(time_str, "%Y. %m. %d. %p %I:%M").replace(tzinfo=KST)
-
-            translated = translator.translate(title, dest='ko').text
-
-            filtered.append({
-                'title': translated,
+            news_list.append({
+                'title': title,
                 'link': link,
-                'symbol': matched_symbol,
-                'time': kst_dt.strftime("%H:%M"),
-                'date': kst_dt.strftime("%Y-%m-%d"),
-                'timestamp': kst_dt.strftime("%Y-%m-%d %H:%M:%S")
+                'symbol': symbol,
+                'time': kst_dt.strftime('%H:%M'),
+                'date': kst_dt.strftime('%Y-%m-%d'),
+                'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S')
             })
-        except Exception as e:
-            continue
-    return filtered
+        return news_list
+    except Exception as e:
+        print(f"[StockTitan] 크롤링 실패: {e}")
+        return []
 
 def update_news():
     if os.path.exists(NEWS_FILE):
@@ -167,43 +147,37 @@ def update_news():
         for item in date_items:
             all_keys.add(item['title'] + item['link'])
 
+    # API 뉴스
     api_key_index = 0
-    for sym in SYMBOLS:
-        news_items = fetch_news(sym, NEWS_API_KEYS[api_key_index])
+    for query in ['nasdaq', 'fda', 'biotech', 'pharma', 'ipo', 'merger', 'investment']:
+        news_items = fetch_news(query, NEWS_API_KEYS[api_key_index])
         for item in news_items:
-            date = item.get("date")
-            if not date:
-                continue
-            if date not in data:
-                data[date] = []
-            uniq_key = item['title'] + item['link']
-            if uniq_key not in all_keys:
-                data[date].append(item)
-                all_keys.add(uniq_key)
+            date = item['date']
+            uniq = item['title'] + item['link']
+            if uniq not in all_keys:
+                data.setdefault(date, []).append(item)
+                all_keys.add(uniq)
         api_key_index = (api_key_index + 1) % len(NEWS_API_KEYS)
 
-    # StockTitan 뉴스도 추가
-    titan_news = fetch_stocktitan()
+    # StockTitan 뉴스
+    titan_news = crawl_stocktitan()
     for item in titan_news:
-        date = item.get("date")
-        if date not in data:
-            data[date] = []
-        uniq_key = item['title'] + item['link']
-        if uniq_key not in all_keys:
-            data[date].append(item)
-            all_keys.add(uniq_key)
+        date = item['date']
+        uniq = item['title'] + item['link']
+        if uniq not in all_keys:
+            data.setdefault(date, []).append(item)
+            all_keys.add(uniq)
 
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
-    cutoff = datetime.now(KST).replace(tzinfo=None) - timedelta(days=3)
-    data = {
-        date: items for date, items in data.items()
-        if datetime.strptime(date, '%Y-%m-%d') >= cutoff
-    }
-
     with open(NEWS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+@app.route('/update_news')
+def trigger_update_news():
+    update_news()
+    return '✅ 뉴스 업데이트 완료'
 
 def analyze_stocks():
     rising, signal = [], []
@@ -229,7 +203,7 @@ def analyze_stocks():
                 elif change >= 1:
                     signal.append(item)
         except Exception as e:
-            print(f"{sym} 분석 오류: {e}")
+            print(f"[분석 오류] {sym}: {e}")
     return rising, signal
 
 def get_related_news(symbol):
@@ -278,11 +252,6 @@ def delete_news():
             json.dump(data, f, ensure_ascii=False, indent=2)
         return jsonify({'status': 'deleted'})
     return jsonify({'error': 'not found'}), 404
-
-@app.route('/update_news')
-def trigger_update_news():
-    update_news()
-    return '뉴스 수집 완료 ✅'
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)
