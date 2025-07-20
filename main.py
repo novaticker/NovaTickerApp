@@ -1,145 +1,131 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 import yfinance as yf
-from datetime import datetime
-import requests
+from datetime import datetime, timedelta
 import json
 import os
+import requests
+from googletrans import Translator
 
 app = Flask(__name__)
+CORS(app)
 
-PRICE_THRESHOLD = 3.0
-VOLUME_MULTIPLIER = 3.0
-NEWS_API_KEY = "pub_af7cbc0a338a4f64aeba8b044a544dca"
+NEWS_API_KEY = 'pub_af7cbc0a338a4f64aeba8b044a544dca'
+NEWS_FILE = 'positive_news.json'
+SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC', 'EXPO']
+translator = Translator()
 
-TICKERS = ["IXHL", "STEM", "TELL", "CRSP", "APLD", "INPX", "CYCC", "BLAZ", "LMFA", "CW", "SAIC", "EXPO"]
+def fetch_news(query):
+    url = f'https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&q={query}&country=us&language=en&category=business'
+    res = requests.get(url).json()
+    articles = res.get('results', [])
+    filtered = []
 
-FILTER_KEYWORDS = [
-    "fda", "clinical trial", "임상", "phase 1", "phase 2", "phase 3", "clinical", "study results",
-    "바이오", "biotech", "급등", "폭등", "approval", "coin", "crypto"
-]
+    for a in articles:
+        title = a.get('title', '')
+        if not any(x in title.lower() for x in ['bitcoin', 'ethereum', 'crypto']):
+            filtered.append({
+                'title': translator.translate(title, dest='ko').text,
+                'link': a.get('link', '')
+            })
 
-THEME_CATEGORIES = {
-    "fda": ["fda", "임상", "clinical", "phase"],
-    "bio": ["bio", "biotech", "바이오"],
-    "rebound": ["급락", "반등"],
-    "soaring": ["급등", "폭등"]
-}
+    return filtered
 
-NEWS_PATH = "positive_news.json"
+def update_news():
+    today = datetime.now().strftime('%Y-%m-%d')
+    if os.path.exists(NEWS_FILE):
+        with open(NEWS_FILE, 'r') as f:
+            data = json.load(f)
+    else:
+        data = {}
 
-# 뉴스 번역
-def translate(text):
-    try:
-        url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=" + text
-        res = requests.get(url)
-        return res.json()[0][0][0]
-    except:
-        return text
+    data[today] = []
+    all_titles = set()
 
-# 뉴스 수집 및 저장
-def fetch_and_store_news():
-    today = datetime.utcnow().strftime('%Y-%m-%d')
-    url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&country=us&language=en&category=business"
-    res = requests.get(url)
-    data = res.json()
+    for sym in SYMBOLS:
+        news_items = fetch_news(sym)
+        for item in news_items:
+            if item['title'] not in all_titles:
+                data[today].append(item)
+                all_titles.add(item['title'])
 
-    if not os.path.exists(NEWS_PATH):
-        with open(NEWS_PATH, "w") as f:
-            json.dump({}, f)
+    # 3일 초과된 날짜 삭제
+    cutoff = datetime.now() - timedelta(days=3)
+    data = {date: items for date, items in data.items() if datetime.strptime(date, '%Y-%m-%d') >= cutoff}
 
-    with open(NEWS_PATH, "r") as f:
-        news_data = json.load(f)
+    with open(NEWS_FILE, 'w') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
-    news_data.setdefault(today, [])
-    added_titles = {n['title'] for n in news_data[today]}
-
-    for article in data.get("results", []):
-        title = article.get("title", "")
-        link = article.get("link", "")
-        if "nasdaq" in title.lower() and not any(t in title for t in added_titles):
-            if any(keyword.lower() in title.lower() for keyword in FILTER_KEYWORDS):
-                translated = translate(title)
-                news_data[today].append({
-                    "title": translated,
-                    "link": link
-                })
-
-    with open(NEWS_PATH, "w") as f:
-        json.dump(news_data, f, indent=2, ensure_ascii=False)
-
-# 급등 감지
-def detect_rising_stocks():
+def analyze_stocks():
     rising = []
-    preparing = []
-    news_map = load_news_map()
-
-    for ticker in TICKERS:
+    signal = []
+    for sym in SYMBOLS:
         try:
-            df = yf.download(ticker, period="1d", interval="1m", progress=False)
-            if len(df) < 2: continue
-            open_price = df["Open"].iloc[0]
-            close_price = df["Close"].iloc[-1]
-            volume_now = df["Volume"].iloc[-1]
-            avg_volume = df["Volume"].mean()
+            df = yf.download(sym, period="5m", interval="1m")
+            if len(df) < 4:
+                continue
 
-            change = ((close_price - open_price) / open_price) * 100
-            volume_ratio = volume_now / avg_volume if avg_volume > 0 else 0
+            vol_now = df['Volume'].iloc[-1]
+            vol_prev = df['Volume'].iloc[-4:-1].mean()
+            price_now = df['Close'].iloc[-1]
+            price_prev = df['Close'].iloc[-4]
+            change = (price_now - price_prev) / price_prev * 100
 
-            label = f"{ticker} ⭐" if ticker in news_map else ticker
+            item = {'symbol': sym, 'volume': int(vol_now), 'change': round(change, 2)}
+            
+            # 뉴스 추가
+            news = get_related_news(sym)
+            if news:
+                item['news'] = news
 
-            if change >= PRICE_THRESHOLD and volume_ratio >= VOLUME_MULTIPLIER:
-                rising.append(label)
-            elif volume_ratio >= VOLUME_MULTIPLIER and change >= 1.0:
-                preparing.append(label)
+            if vol_now > vol_prev * 2:
+                if change >= 3:
+                    rising.append(item)
+                elif change >= 1:
+                    signal.append(item)
         except Exception as e:
-            print("분석 오류:", ticker, e)
-    return rising, preparing
+            print(f"{sym} 분석 오류:", e)
+    return rising, signal
 
-# 뉴스 매핑
-def load_news_map():
-    news_map = {}
-    if not os.path.exists(NEWS_PATH): return news_map
-    with open(NEWS_PATH, "r") as f:
+def get_related_news(symbol):
+    today = datetime.now().strftime('%Y-%m-%d')
+    if not os.path.exists(NEWS_FILE):
+        return None
+    with open(NEWS_FILE, 'r') as f:
         data = json.load(f)
-    for date in data:
-        for item in data[date]:
-            for ticker in TICKERS:
-                if ticker in item["title"].upper():
-                    news_map.setdefault(ticker, []).append(item["title"])
-    return news_map
+    today_news = data.get(today, [])
+    for item in today_news:
+        if symbol.lower() in item['title'].lower():
+            return item
+    return None
 
-@app.route("/")
-def index():
-    fetch_and_store_news()
-    return render_template("index.html")
+@app.route('/data.json')
+def get_data():
+    update_news()
+    rising, signal = analyze_stocks()
+    with open(NEWS_FILE, 'r') as f:
+        news = json.load(f)
+    return jsonify({
+        'rising': rising,
+        'signal': signal,
+        'positive_news': news
+    })
 
-@app.route("/rising_stocks.json")
-def rising_data():
-    rising, preparing = detect_rising_stocks()
-    return jsonify({"rising": rising, "preparing": preparing})
-
-@app.route("/positive_news.json")
-def get_news():
-    if not os.path.exists(NEWS_PATH):
-        return jsonify({})
-    with open(NEWS_PATH, "r") as f:
-        return jsonify(json.load(f))
-
-@app.route("/delete_news", methods=["POST"])
+@app.route('/delete_news', methods=['POST'])
 def delete_news():
-    data = request.get_json()
-    date, title = data["date"], data["title"]
-    with open(NEWS_PATH, "r") as f:
-        all_news = json.load(f)
-    if date in all_news:
-        all_news[date] = [n for n in all_news[date] if n["title"] != title]
-    with open(NEWS_PATH, "w") as f:
-        json.dump(all_news, f, indent=2, ensure_ascii=False)
-    return jsonify({"status": "ok"})
+    req = request.get_json()
+    date = req.get('date')
+    title = req.get('title')
+    if not os.path.exists(NEWS_FILE):
+        return jsonify({'error': 'no file'}), 404
+    with open(NEWS_FILE, 'r') as f:
+        data = json.load(f)
+    if date in data:
+        data[date] = [n for n in data[date] if n['title'] != title]
+        with open(NEWS_FILE, 'w') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return jsonify({'status': 'deleted'})
+    return jsonify({'error': 'not found'}), 404
 
-@app.route("/filter_keywords.json")
-def filter_keywords():
-    return jsonify(THEME_CATEGORIES)
-
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
