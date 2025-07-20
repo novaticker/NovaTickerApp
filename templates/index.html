@@ -30,18 +30,37 @@
     .tab-button.active { background-color: #00c08b; }
     .content { display: none; margin-top: 20px; }
     .content.active { display: block; }
-    .filter-buttons { margin-top: 10px; }
+
+    .filter-buttons {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
     .filter-button {
       background-color: #222;
       color: white;
       border: none;
-      padding: 6px 12px;
-      margin: 4px;
+      padding: 8px 14px;
       border-radius: 8px;
       font-size: 0.9em;
       cursor: pointer;
+      flex: 1 1 calc(33.333% - 16px);
+      max-width: calc(33.333% - 16px);
+      box-sizing: border-box;
     }
-    .filter-button.active { background-color: #f14e4e; }
+    .filter-button.active {
+      background-color: #f14e4e;
+    }
+
+    @media (max-width: 600px) {
+      .filter-button {
+        flex: 1 1 calc(50% - 16px);
+        max-width: calc(50% - 16px);
+      }
+    }
+
     .news-item {
       margin: 10px auto;
       max-width: 90%;
@@ -195,4 +214,3 @@
   </script>
 </body>
 </html>
-
