@@ -22,6 +22,7 @@ SYMBOLS = [
 ]
 
 STOCK_SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC']
+ALLOWED_CHINA_SYMBOLS = ['nio', 'baba', 'bidu', 'jd']
 
 translator = Translator()
 KST = pytz.timezone('Asia/Seoul')
@@ -29,6 +30,28 @@ KST = pytz.timezone('Asia/Seoul')
 @app.route('/')
 def index():
     return render_template('index.html')
+
+def is_positive_news(news):
+    title = news.get('title', '').lower()
+    content = news.get('content', '').lower()
+
+    positive_keywords = [
+        'fda', 'clinical', 'approval', 'merger', 'acquisition',
+        'investment', 'partnership', 'ipo', 'listing',
+        'breakthrough', 'surge', 'skyrocket'
+    ]
+    exclude_keywords = [
+        'crypto', 'ethereum', 'bitcoin',
+        'lawsuit', 'sec investigation', 'delisting'
+    ]
+    if not any(kw in title or kw in content for kw in positive_keywords):
+        return False
+    if any(kw in title or kw in content for kw in exclude_keywords):
+        return False
+    if 'china' in title or 'china' in content:
+        if not any(sym in title or sym in content for sym in ALLOWED_CHINA_SYMBOLS):
+            return False
+    return True
 
 def fetch_news(query):
     url = f'https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&q={query}&country=us&language=en&category=business'
@@ -51,6 +74,9 @@ def fetch_news(query):
         link = a.get('link', '')
 
         if not title or not link or 'example.com' in link:
+            continue
+
+        if not is_positive_news(a):
             continue
 
         pub_utc = a.get('pubDate')
