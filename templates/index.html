@@ -2,155 +2,182 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>NovaTicker 리치</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📊 NovaTicker 리치</title>
   <style>
     body {
+      font-family: 'Arial', sans-serif;
       background-color: #111;
       color: white;
-      font-family: Arial, sans-serif;
       text-align: center;
-      padding: 10px;
+      padding: 20px;
     }
+
     h1 {
-      font-size: 28px;
-      margin-bottom: 10px;
+      font-size: 2em;
     }
-    button {
-      margin: 5px;
-      padding: 10px 15px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    .tab {
-      background-color: #444;
-      color: white;
-    }
-    .active-tab {
-      background-color: #0af;
-    }
-    .filter-btn {
-      background-color: #222;
-      color: white;
-    }
-    .reset-btn {
-      background-color: #c00;
-      color: white;
-    }
-    .news {
-      background-color: #222;
-      margin: 10px auto;
-      padding: 10px;
-      border-radius: 10px;
-      max-width: 500px;
-      text-align: left;
-    }
-    .date-header {
-      font-size: 20px;
+
+    .tabs {
       margin-top: 20px;
     }
-    .delete-btn {
-      float: right;
-      background: transparent;
+
+    .tab-button {
+      background-color: #333;
+      color: white;
       border: none;
-      color: #f55;
-      font-size: 18px;
+      padding: 10px 18px;
+      margin: 4px;
+      border-radius: 10px;
+      font-size: 1em;
+    }
+
+    .tab-button.active {
+      background-color: #00c08b;
+    }
+
+    .content {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .content.active {
+      display: block;
+    }
+
+    .filter-buttons {
+      margin-top: 10px;
+    }
+
+    .filter-button {
+      background-color: #222;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      margin: 4px 4px;
+      border-radius: 8px;
+      font-size: 0.9em;
+    }
+
+    .filter-button.active {
+      background-color: #f14e4e;
+    }
+
+    .news-item {
+      margin: 10px auto;
+      max-width: 90%;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 10px;
+      background-color: #1a1a1a;
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #f44336;
+      font-size: 1.2em;
+      float: right;
       cursor: pointer;
+    }
+
+    .news-title {
+      text-align: left;
     }
   </style>
 </head>
 <body>
   <h1>📊 NovaTicker 리치</h1>
-  
-  <!-- 탭 메뉴 -->
-  <div>
-    <button class="tab active-tab" onclick="showTab('rising')">📈 급등 종목</button>
-    <button class="tab" onclick="showTab('potential')">⚠️ 급등 조짐</button>
-    <button class="tab" onclick="showTab('news')">📰 호재 뉴스</button>
+
+  <div class="tabs">
+    <button class="tab-button active" onclick="showTab('rising')">📈 급등 종목</button>
+    <button class="tab-button" onclick="showTab('signal')">⚠️ 급등 조짐</button>
+    <button class="tab-button" onclick="showTab('news')">📰 호재 뉴스</button>
   </div>
 
-  <div id="last-updated" style="margin:10px;">⏰ 마지막 갱신: 불러오는 중...</div>
-
-  <!-- 필터 버튼 영역 (뉴스 탭에만 표시) -->
-  <div id="filter-buttons" style="display: none;">
-    <button class="filter-btn" onclick="filterNews('fda')">🧪 FDA/임상</button>
-    <button class="filter-btn" onclick="filterNews('bio')">🧬 바이오</button>
-    <button class="filter-btn" onclick="filterNews('rebound')">📉 급락 후 반등</button>
-    <button class="filter-btn" onclick="filterNews('spike')">💥 급등 이슈</button>
-    <button class="reset-btn" onclick="resetFilter()">❌ 초기화</button>
+  <div id="rising" class="content active">
+    <div id="rising-list">⏰ 마지막 갱신: 불러오는 중...</div>
   </div>
 
-  <!-- 데이터 표시 영역 -->
-  <div id="content-area"></div>
+  <div id="signal" class="content">
+    <div id="signal-list">⏰ 마지막 갱신: 불러오는 중...</div>
+  </div>
+
+  <div id="news" class="content">
+    <div class="filter-buttons">
+      <button class="filter-button" onclick="filterNews('FDA')">🧪 FDA/임상</button>
+      <button class="filter-button" onclick="filterNews('바이오')">🧬 바이오</button>
+      <button class="filter-button" onclick="filterNews('반등')">📉 급락 후 반등</button>
+      <button class="filter-button" onclick="filterNews('급등')">💥 급등 이슈</button>
+      <button class="filter-button" onclick="resetFilter()">❌ 초기화</button>
+    </div>
+    <div id="news-list">⏰ 뉴스 로딩 중...</div>
+  </div>
 
   <script>
-    let allData = {};
-    let activeTab = 'rising';
-
-    function showTab(tab) {
-      activeTab = tab;
-      document.querySelectorAll('.tab').forEach(btn => btn.classList.remove('active-tab'));
-      event.target.classList.add('active-tab');
-      document.getElementById("filter-buttons").style.display = (tab === 'news') ? "block" : "none";
-      renderData();
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.content').forEach(div => div.classList.remove('active'));
+      document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+      document.getElementById(tabId).classList.add('active');
     }
 
-    function filterNews(type) {
-      renderData(type);
-    }
-
-    function resetFilter() {
-      renderData();
-    }
-
-    function deleteNews(date, idx) {
-      fetch(`/delete_news?date=${date}&index=${idx}`, { method: 'DELETE' })
-        .then(() => fetchData());
-    }
-
-    function renderData(filterType = null) {
-      const area = document.getElementById('content-area');
-      area.innerHTML = '';
-      if (!allData[activeTab]) {
-        area.innerHTML = '<p>⏳ 데이터 로딩 중...</p>';
-        return;
-      }
-
-      Object.entries(allData[activeTab]).forEach(([date, items]) => {
-        const dateDiv = document.createElement("div");
-        dateDiv.className = "date-header";
-        dateDiv.innerHTML = `📅 ${date}`;
-        area.appendChild(dateDiv);
-
-        items.forEach((item, idx) => {
-          if (filterType && item.type !== filterType) return;
-
-          const div = document.createElement("div");
-          div.className = "news";
-          div.innerHTML = `
-            ${item.title.includes("http") ? `<a href="${item.link}" target="_blank">${item.title}</a>` : item.title}
-            ${item.has_news ? "⭐" : ""}
-            <button class="delete-btn" onclick="deleteNews('${date}', ${idx})">🗑</button>
-          `;
-          area.appendChild(div);
-        });
+    function filterNews(keyword) {
+      document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      const items = document.querySelectorAll('.news-item');
+      items.forEach(item => {
+        item.style.display = item.innerText.includes(keyword) ? 'block' : 'none';
       });
     }
 
-    function fetchData() {
-      fetch('/data.json')
-        .then(res => res.json())
-        .then(data => {
-          allData = data;
-          document.getElementById("last-updated").innerText = "⏰ 마지막 갱신: " + (data.updated || '');
-          renderData();
-        });
+    function resetFilter() {
+      document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.news-item').forEach(item => item.style.display = 'block');
     }
 
-    fetchData();
-    setInterval(fetchData, 1000 * 60); // 1분마다 자동 갱신
+    async function loadData() {
+      try {
+        const res = await fetch('/data.json');
+        const data = await res.json();
+        const now = new Date().toISOString().split('T')[0];
+
+        // 급등 종목
+        const rising = data.rising || [];
+        document.getElementById('rising-list').innerHTML = `<p>📅 ${now}</p>` + rising.map(i => {
+          const mark = i.news ? '⭐' : '';
+          return `<div>${i.symbol} ${mark} ${i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : ''}</div>`;
+        }).join('<hr>');
+
+        // 급등 조짐
+        const signal = data.signal || [];
+        document.getElementById('signal-list').innerHTML = `<p>📅 ${now}</p>` + signal.map(i => {
+          const mark = i.news ? '⭐' : '';
+          return `<div>${i.symbol} ${mark} ${i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : ''}</div>`;
+        }).join('<hr>');
+
+        // 호재 뉴스
+        const newsList = data.positive_news[now] || [];
+        document.getElementById('news-list').innerHTML = newsList.map(n => `
+          <div class="news-item">
+            <button class="delete-btn" onclick="deleteNews('${now}', '${n.title.replace(/'/g, "\\'")}')">🗑️</button>
+            <div class="news-title"><a href="${n.link}" target="_blank">${n.title}</a></div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error('데이터 불러오기 실패:', e);
+      }
+    }
+
+    async function deleteNews(date, title) {
+      const res = await fetch('/delete_news', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, title })
+      });
+      if (res.ok) loadData();
+    }
+
+    loadData();
   </script>
 </body>
 </html>
