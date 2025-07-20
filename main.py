@@ -36,46 +36,56 @@ def fetch_news(query):
                     utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S")
                     kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(KST)
                     kst_time_str = kst_dt.strftime("%H:%M")
+                    kst_date_str = kst_dt.strftime("%Y-%m-%d")
+                    timestamp = kst_dt.strftime("%Y-%m-%d %H:%M:%S")
                 except:
                     kst_time_str = ""
+                    kst_date_str = datetime.now(KST).strftime("%Y-%m-%d")
+                    timestamp = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
             else:
                 kst_time_str = ""
+                kst_date_str = datetime.now(KST).strftime("%Y-%m-%d")
+                timestamp = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
 
             filtered.append({
                 'title': translator.translate(title, dest='ko').text,
                 'link': a.get('link', ''),
                 'symbol': query,
-                'time': kst_time_str
+                'time': kst_time_str,
+                'date': kst_date_str,
+                'timestamp': timestamp
             })
 
     return filtered
 
 def update_news():
-    today = datetime.now().strftime('%Y-%m-%d')
     if os.path.exists(NEWS_FILE):
         with open(NEWS_FILE, 'r') as f:
             data = json.load(f)
     else:
         data = {}
 
-    data[today] = []
     all_titles = set()
-
     for sym in SYMBOLS:
         news_items = fetch_news(sym)
         for item in news_items:
+            date = item.get("date")
+            if not date:
+                continue
+            if date not in data:
+                data[date] = []
             if item['title'] not in all_titles:
-                data[today].append(item)
+                data[date].append(item)
                 all_titles.add(item['title'])
 
-    # ✅ 뉴스 시간 기준 내림차순 정렬
-    def sort_key(news):
-        return news.get('time', '00:00')
-    data[today].sort(key=sort_key, reverse=True)
+    # 각 날짜별로 timestamp 기준 최신순 정렬
+    for date in data:
+        data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
     # 3일 초과된 날짜 삭제
-    cutoff = datetime.now() - timedelta(days=3)
-    data = {date: items for date, items in data.items() if datetime.strptime(date, '%Y-%m-%d') >= cutoff}
+    cutoff = datetime.now(KST) - timedelta(days=3)
+    data = {date: items for date, items in data.items()
+            if datetime.strptime(date, '%Y-%m-%d') >= cutoff}
 
     with open(NEWS_FILE, 'w') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -111,7 +121,7 @@ def analyze_stocks():
     return rising, signal
 
 def get_related_news(symbol):
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now(KST).strftime('%Y-%m-%d')
     if not os.path.exists(NEWS_FILE):
         return None
     with open(NEWS_FILE, 'r') as f:
