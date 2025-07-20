@@ -69,6 +69,7 @@
       border: 1px solid #444;
       border-radius: 10px;
       background-color: #1a1a1a;
+      text-align: left;
     }
 
     .delete-btn {
@@ -81,7 +82,14 @@
     }
 
     .news-title {
-      text-align: left;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .news-meta {
+      font-size: 0.85em;
+      color: #aaa;
+      text-align: right;
     }
 
     h3 {
@@ -161,11 +169,11 @@
           return `<div>${i.symbol} ${mark} ${i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : ''}</div>`;
         }).join('<hr>') : '📢 조짐 종목 없음');
 
-        // 호재 뉴스 (날짜별로 묶어서)
+        // 호재 뉴스
         const newsData = data.positive_news || {};
         let newsHTML = '';
 
-        const dates = Object.keys(newsData).sort((a, b) => b.localeCompare(a)); // 최신 날짜가 위로
+        const dates = Object.keys(newsData).sort((a, b) => b.localeCompare(a));
         if (dates.length === 0) {
           newsHTML = '📢 뉴스 없음';
         } else {
@@ -175,6 +183,7 @@
               <div class="news-item">
                 <button class="delete-btn" onclick="deleteNews('${date}', '${n.title.replace(/'/g, "\\'")}')">🗑️</button>
                 <div class="news-title"><a href="${n.link}" target="_blank">${n.title}</a></div>
+                <div class="news-meta">${n.symbol ? `🧾 (${n.symbol})` : ''} 🕒 ${n.time || ''} KST</div>
               </div>
             `).join('');
           });
