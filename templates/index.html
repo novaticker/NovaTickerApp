@@ -10,149 +10,190 @@
       color: white;
       font-family: sans-serif;
       text-align: center;
-      padding: 10px;
+      margin: 0;
+      padding: 0;
     }
-    button {
-      padding: 10px 15px;
-      margin: 5px;
-      border-radius: 10px;
+    h1 {
+      font-size: 1.8em;
+      margin: 20px 0;
+    }
+    .tab {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+    .tab button {
+      background-color: #333;
       border: none;
-      font-size: 16px;
+      padding: 10px 20px;
+      color: white;
+      font-size: 1em;
       cursor: pointer;
     }
-    .tab-btn {
-      background-color: #444;
-      color: white;
+    .tab button.active {
+      background-color: #00ffe4;
+      color: black;
+      font-weight: bold;
     }
-    .tab-btn.active {
-      background-color: #00c080;
-    }
-    .filter-btn {
-      background-color: #333;
-      margin: 5px;
-    }
-    .filter-btn:hover {
-      background-color: #555;
-    }
-    .filter-btn.active {
-      background-color: #666;
+    .content {
+      padding: 20px;
     }
     .card {
       background-color: #222;
       margin: 10px auto;
-      padding: 10px;
+      padding: 15px;
       border-radius: 10px;
-      max-width: 600px;
+      width: 90%;
       text-align: left;
+      position: relative;
+    }
+    .date-title {
+      background-color: #333;
+      padding: 10px;
+      margin: 20px auto 5px;
+      width: 90%;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: bold;
     }
     a {
-      color: #00e0ff;
+      color: #00ffe4;
       text-decoration: none;
+    }
+    .updated-time {
+      color: #ccc;
+      font-size: 0.9em;
+      margin-bottom: 10px;
+    }
+    .delete-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: red;
+      border: none;
+      color: white;
+      font-size: 0.9em;
+      padding: 4px 8px;
+      border-radius: 5px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
   <h1>📊 NovaTicker 리치</h1>
 
-  <div>
-    <button class="tab-btn active" onclick="showTab('rising')">📈 급등 종목</button>
-    <button class="tab-btn" onclick="showTab('warning')">⚠️ 급등 조짐</button>
-    <button class="tab-btn" onclick="showTab('news')">📰 호재 뉴스</button>
+  <div class="tab">
+    <button class="tablinks active" onclick="openTab(event, 'stocks')">📈 급등 종목</button>
+    <button class="tablinks" onclick="openTab(event, 'news')">📰 호재 뉴스</button>
   </div>
 
-  <p id="updateTime">📅 마지막 갱신: 불러오는 중...</p>
-
-  <div id="filters" style="display:none;">
-    <button class="filter-btn" onclick="filterNews('fda')">🧪 FDA/임상</button>
-    <button class="filter-btn" onclick="filterNews('bio')">🧬 바이오</button>
-    <button class="filter-btn" onclick="filterNews('rebound')">📉 급락 후 반등</button>
-    <button class="filter-btn" onclick="filterNews('spike')">💥 급등 이슈</button>
-    <button class="filter-btn" onclick="resetFilter()">❌ 초기화</button>
+  <div id="stocks" class="content tabcontent" style="display: block;">
+    <div class="updated-time" id="stocksTime"></div>
+    <div id="stocksArea">⏳ 준비 중...</div>
   </div>
 
-  <div id="content"></div>
+  <div id="news" class="content tabcontent" style="display: none;">
+    <div class="updated-time" id="newsTime"></div>
+    <div id="newsArea">⏳ 준비 중...</div>
+  </div>
 
   <script>
-    let tab = "rising";
-    let newsData = {};
-    let filteredNews = [];
+    function openTab(evt, tabName) {
+      const tabcontent = document.getElementsByClassName("tabcontent");
+      const tablinks = document.getElementsByClassName("tablinks");
+      for (let i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+      for (let i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("active");
+      }
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.classList.add("active");
+    }
 
-    const keywords = {
-      fda: ["fda", "clinical", "임상", "phase 3"],
-      bio: ["bio", "therapeutics", "oncology", "drug"],
-      rebound: ["rebound", "strong recovery", "bounce back"],
-      spike: ["breakout", "explosive", "jumps", "spikes"]
-    };
+    async function loadData() {
+      try {
+        const res = await fetch("/data.json");
+        const data = await res.json();
 
-    function showTab(name) {
-      tab = name;
-      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-      document.querySelectorAll(".tab-btn").forEach(btn => {
-        if (btn.textContent.includes(name === "rising" ? "급등 종목" : name === "warning" ? "급등 조짐" : "호재 뉴스")) {
-          btn.classList.add("active");
+        // 급등 종목
+        let stockHTML = "";
+        if (data.spikes.length === 0 && data.watchlist.length === 0) {
+          stockHTML = "📭 감지된 종목 없음";
+        } else {
+          data.spikes.forEach(item => {
+            stockHTML += `<div class="card">
+              <b>${item.ticker}</b> (${item.percent}%)<br/>
+              💵 ${item.open} → ${item.latest}<br/>
+              🔥 거래량: ${item.volume_now.toLocaleString()} (평균 ${item.volume_prev.toLocaleString()})<br/>`;
+
+            if (item.news && item.news.length > 0) {
+              stockHTML += `📰 관련 뉴스:<br/>`;
+              item.news.forEach(n => {
+                stockHTML += `<a href="${n.link}" target="_blank">- ${n.title}</a><br/>`;
+              });
+            }
+
+            stockHTML += `</div>`;
+          });
+
+          data.watchlist.forEach(item => {
+            stockHTML += `<div class="card">
+              ⚠️ <b>${item.ticker}</b> 조짐 감지<br/>
+              💵 ${item.open} → ${item.latest} (${item.percent}%)<br/>
+              🔥 거래량: ${item.volume_now.toLocaleString()} (평균 ${item.volume_prev.toLocaleString()})<br/>
+            </div>`;
+          });
         }
-      });
 
-      document.getElementById("filters").style.display = (tab === "news") ? "block" : "none";
-      loadContent();
-    }
+        document.getElementById("stocksArea").innerHTML = stockHTML;
+        document.getElementById("stocksTime").innerText = "⏰ 마지막 갱신: " + data.updated;
 
-    function filterNews(type) {
-      const list = keywords[type];
-      filteredNews = newsData.filter(n =>
-        list.some(kw => n.title.toLowerCase().includes(kw.toLowerCase()))
-      );
-      document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
-      event.target.classList.add("active");
-      renderNews();
-    }
+        // 뉴스
+        const newsArea = document.getElementById("newsArea");
+        const newsTime = document.getElementById("newsTime");
 
-    function resetFilter() {
-      filteredNews = [...newsData];
-      document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
-      renderNews();
-    }
-
-    function loadContent() {
-      if (tab === "rising" || tab === "warning") {
-        fetch("/rising_stocks.json")
-          .then(res => res.json())
-          .then(data => {
-            document.getElementById("updateTime").textContent = "📅 마지막 갱신: " + data.updated;
-            const items = tab === "rising" ? data.rising : data.warning;
-            const html = items.map(item => {
-              return `<div class="card">
-                <strong>${item.ticker}</strong> (${item.percent}%)<br>
-                💵 ${item.open} → ${item.latest}<br>
-                📊 거래량: ${item.volume_prev} → ${item.volume_now}<br>
-                ${item.news && item.news.length ? item.news.map(n => `<a href="${n.link}" target="_blank">📰 ${n.title}</a><br>`).join('') : ''}
+        const dates = Object.keys(data.positive_news).sort().reverse();
+        let newsHTML = "";
+        if (dates.length === 0) {
+          newsHTML = "📭 뉴스 없음";
+        } else {
+          dates.forEach(date => {
+            newsHTML += `<div class="date-title">📅 ${date}</div>`;
+            data.positive_news[date].forEach((item, idx) => {
+              const uid = `${date}___${idx}`;
+              newsHTML += `<div class="card" id="${uid}">
+                <a href="${item.link}" target="_blank">${item.title}</a><br/>
+                🔑 ${item.keyword || ""}
+                <button class="delete-btn" onclick="deleteNews('${date}', ${idx}, '${uid}')">🗑 삭제</button>
               </div>`;
-            }).join("");
-            document.getElementById("content").innerHTML = html || "<p>표시할 데이터가 없습니다.</p>";
+            });
           });
-      } else {
-        fetch("/positive_news.json")
-          .then(res => res.json())
-          .then(data => {
-            const today = new Date().toISOString().slice(0, 10);
-            newsData = data[today] || [];
-            filteredNews = [...newsData];
-            renderNews();
-          });
+        }
+
+        newsArea.innerHTML = newsHTML;
+        newsTime.innerText = "⏰ 마지막 갱신: " + data.updated;
+
+      } catch (e) {
+        document.getElementById("stocksArea").innerHTML = "❌ 종목 불러오기 실패";
+        document.getElementById("newsArea").innerHTML = "❌ 뉴스 불러오기 실패";
       }
     }
 
-    function renderNews() {
-      const html = filteredNews.map(n =>
-        `<div class="card"><a href="${n.link}" target="_blank">📰 ${n.title}</a></div>`
-      ).join("");
-      document.getElementById("content").innerHTML = html || "<p>표시할 뉴스가 없습니다.</p>";
+    async function deleteNews(date, index, elementId) {
+      const res = await fetch(`/delete_news?date=${date}&index=${index}`);
+      const data = await res.json();
+      if (data.success) {
+        const el = document.getElementById(elementId);
+        if (el) el.remove();
+      } else {
+        alert("삭제 실패!");
+      }
     }
 
-    // ✅ 첫 로딩 시 run 호출하고 그다음 로딩 시작
-    fetch("/run").then(() => {
-      setTimeout(loadContent, 3000); // 3초 후 첫 데이터 불러오기
-    });
+    // 초기 로드 + 5분마다 갱신
+    loadData();
+    setInterval(loadData, 5 * 60 * 1000);
   </script>
 </body>
 </html>
