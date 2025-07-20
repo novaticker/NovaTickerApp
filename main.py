@@ -1,6 +1,6 @@
 from flask import Flask, render_template, send_from_directory, jsonify, request
 import yfinance as yf
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
 import json
 import os
@@ -14,11 +14,12 @@ NEWS_API_KEY = "pub_af7cbc0a338a4f64aeba8b044a544dca"
 
 TICKERS = ["IXHL", "STEM", "TELL", "CRSP", "APLD", "INPX", "CYCC", "BLAZ", "LMFA", "CW", "SAIC", "EXPO"]
 
+# ✅ 느슨한 미국 주식 관련 키워드 필터 (특히 나스닥)
 FILTER_KEYWORDS = [
-    "fda", "clinical", "임상", "phase 1", "phase 2", "phase 3", "clinical trial", "study results",
-    "bio", "therapeutics", "oncology", "drug", "healthcare",
-    "rebound", "strong recovery", "bounce back",
-    "breakout", "explosive", "jumps", "spikes"
+    "nasdaq", "nyse", "biotech", "pharma", "fda", "clinical", "drug", "therapeutics",
+    "ai", "artificial intelligence", "blockchain", "web3", "crypto", "coin",
+    "phase 1", "phase 2", "phase 3", "study results", "earnings", "ipo",
+    "stock", "shares", "invest", "sec", "market", "us equities", "american stock"
 ]
 
 # ✅ 뉴스 수집
@@ -32,9 +33,9 @@ def fetch_news(ticker):
         for a in articles:
             title = a.get("title", "").strip()
             link = a.get("link", "").strip()
-            lowered = title.lower()
             if not title or not link:
                 continue
+            lowered = title.lower()
             if not any(kw in lowered for kw in FILTER_KEYWORDS):
                 continue
             key = title + link
@@ -52,7 +53,7 @@ def fetch_news(ticker):
     except:
         return []
 
-# ✅ 번역
+# ✅ 번역 (영어 → 한국어)
 def translate(text):
     try:
         url = "https://translate.googleapis.com/translate_a/single"
@@ -68,7 +69,7 @@ def translate(text):
     except:
         return text
 
-# ✅ 급등 + 조짐 종목 분석
+# ✅ 급등 및 조짐 종목 분석
 def analyze_stocks():
     rising = []
     warning = []
@@ -97,17 +98,15 @@ def analyze_stocks():
             }
 
             if price_change >= PRICE_THRESHOLD and volume_ratio >= VOLUME_MULTIPLIER:
-                news = fetch_news(ticker)
-                data["news"] = news
-                data["has_news"] = bool(news)
+                data["news"] = fetch_news(ticker)
+                data["has_news"] = bool(data["news"])
                 rising.append(data)
             elif volume_ratio >= VOLUME_MULTIPLIER:
                 warning.append(data)
 
         except Exception as e:
-            print(f"{ticker} 분석 오류: {e}")
+            print(f"분석 오류: {ticker}, {e}")
             continue
-
     return rising, warning
 
 # ✅ 호재 뉴스 수집
@@ -122,9 +121,9 @@ def fetch_positive_news():
         for a in articles:
             title = a.get("title", "").strip()
             link = a.get("link", "").strip()
-            lowered = title.lower()
             if not title or not link:
                 continue
+            lowered = title.lower()
             if not any(kw in lowered for kw in FILTER_KEYWORDS):
                 continue
             key = title + link
@@ -145,6 +144,7 @@ def fetch_positive_news():
                 existing = json.load(f)
         else:
             existing = {}
+
         if today not in existing:
             existing[today] = []
 
@@ -159,28 +159,34 @@ def fetch_positive_news():
 
         return news
     except Exception as e:
-        print("호재 뉴스 오류:", e)
+        print("뉴스 수집 실패:", e)
         return []
 
-# ✅ 뉴스 삭제 기능
-@app.route("/delete_news")
+# ✅ 뉴스 삭제 (수동)
+@app.route("/delete_news", methods=["POST"])
 def delete_news():
-    date = request.args.get("date")
-    index = int(request.args.get("index"))
-    filepath = "positive_news.json"
     try:
+        payload = request.get_json()
+        target_date = payload.get("date")
+        title = payload.get("title")
+        link = payload.get("link")
+
+        filepath = "positive_news.json"
+        if not os.path.exists(filepath):
+            return jsonify({"status": "file not found"})
+
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
-        if date in data and 0 <= index < len(data[date]):
-            del data[date][index]
-            if not data[date]:
-                del data[date]
+
+        if target_date in data:
+            data[target_date] = [n for n in data[target_date] if not (n["title"] == title and n["link"] == link)]
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            return jsonify({"success": True})
+            return jsonify({"status": "deleted"})
+        else:
+            return jsonify({"status": "not found"})
     except:
-        pass
-    return jsonify({"success": False})
+        return jsonify({"status": "error"})
 
 # ✅ 라우팅
 @app.route("/")
