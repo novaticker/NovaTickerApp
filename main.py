@@ -1,4 +1,4 @@
-from flask import Flask, render_template, send_from_directory, jsonify
+from flask import Flask, render_template, send_from_directory, jsonify, request
 import yfinance as yf
 from datetime import datetime, timedelta
 import requests
@@ -154,7 +154,6 @@ def fetch_positive_news():
             if key not in existing_keys:
                 existing[today].append(item)
 
-        # ✅ 뉴스 삭제 X — 모든 날짜 유지
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(existing, f, ensure_ascii=False, indent=2)
 
@@ -162,6 +161,26 @@ def fetch_positive_news():
     except Exception as e:
         print("호재 뉴스 오류:", e)
         return []
+
+# ✅ 뉴스 삭제 기능
+@app.route("/delete_news")
+def delete_news():
+    date = request.args.get("date")
+    index = int(request.args.get("index"))
+    filepath = "positive_news.json"
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if date in data and 0 <= index < len(data[date]):
+            del data[date][index]
+            if not data[date]:
+                del data[date]
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            return jsonify({"success": True})
+    except:
+        pass
+    return jsonify({"success": False})
 
 # ✅ 라우팅
 @app.route("/")
