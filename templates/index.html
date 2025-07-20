@@ -21,14 +21,17 @@
       display: flex;
       justify-content: center;
       margin-bottom: 10px;
+      flex-wrap: wrap;
     }
     .tab button {
       background-color: #333;
       border: none;
       padding: 10px 20px;
+      margin: 5px;
       color: white;
       font-size: 1em;
       cursor: pointer;
+      border-radius: 8px;
     }
     .tab button.active {
       background-color: #00ffe4;
@@ -130,7 +133,7 @@
             if (item.news && item.news.length > 0) {
               stockHTML += `📰 관련 뉴스:<br/>`;
               item.news.forEach(n => {
-                stockHTML += `<a href="${n.link}" target="_blank">- ${n.title}</a><br/>`;
+                stockHTML += `<a href="${n.link}" target="_blank">⭐ ${n.title}</a><br/>`;
               });
             }
 
@@ -141,8 +144,16 @@
             stockHTML += `<div class="card">
               ⚠️ <b>${item.ticker}</b> 조짐 감지<br/>
               💵 ${item.open} → ${item.latest} (${item.percent}%)<br/>
-              🔥 거래량: ${item.volume_now.toLocaleString()} (평균 ${item.volume_prev.toLocaleString()})<br/>
-            </div>`;
+              🔥 거래량: ${item.volume_now.toLocaleString()} (평균 ${item.volume_prev.toLocaleString()})<br/>`;
+
+            if (item.news && item.news.length > 0) {
+              stockHTML += `📰 관련 뉴스:<br/>`;
+              item.news.forEach(n => {
+                stockHTML += `<a href="${n.link}" target="_blank">⭐ ${n.title}</a><br/>`;
+              });
+            }
+
+            stockHTML += `</div>`;
           });
         }
 
@@ -191,7 +202,6 @@
       }
     }
 
-    // 초기 로드 + 5분마다 갱신
     loadData();
     setInterval(loadData, 5 * 60 * 1000);
   </script>
