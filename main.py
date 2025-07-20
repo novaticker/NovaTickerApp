@@ -30,7 +30,6 @@ def fetch_news(query):
     for a in articles:
         title = a.get('title', '')
         if not any(x in title.lower() for x in ['bitcoin', 'ethereum', 'crypto']):
-            # pubDate → 한국 시간 변환
             pub_utc = a.get('pubDate')
             if pub_utc:
                 try:
@@ -68,6 +67,11 @@ def update_news():
             if item['title'] not in all_titles:
                 data[today].append(item)
                 all_titles.add(item['title'])
+
+    # ✅ 뉴스 시간 기준 내림차순 정렬
+    def sort_key(news):
+        return news.get('time', '00:00')
+    data[today].sort(key=sort_key, reverse=True)
 
     # 3일 초과된 날짜 삭제
     cutoff = datetime.now() - timedelta(days=3)
@@ -125,7 +129,7 @@ def get_data():
     with open(NEWS_FILE, 'r') as f:
         news = json.load(f)
 
-    updated_time = datetime.utcnow().isoformat()  # UptimeRobot 갱신 감지용 UTC 시간
+    updated_time = datetime.utcnow().isoformat()
 
     return jsonify({
         'rising': rising,
