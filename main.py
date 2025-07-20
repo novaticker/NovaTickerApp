@@ -231,9 +231,9 @@ def get_related_news(symbol):
 def get_data():
     try:
         with open(NEWS_FILE, 'r', encoding='utf-8') as f:
-            news = json.load(f)
+            raw_news = json.load(f)
     except:
-        news = {}
+        raw_news = {}
     try:
         rising, signal = analyze_stocks()
     except:
@@ -242,7 +242,7 @@ def get_data():
     return jsonify({
         'rising': rising,
         'signal': signal,
-        'positive_news': news,
+        'positive_news': raw_news,  # ✅ 여기가 핵심: 반드시 "positive_news" 키로 감싸서 반환
         'updated': updated_time
     })
 
