@@ -202,19 +202,17 @@
         const updatedKST = new Date(updatedUTC.getTime() + 9 * 60 * 60 * 1000);
         const timeStr = updatedKST.toLocaleTimeString('ko-KR', { hour12: false });
 
-        const rising = data.rising || [];
-        document.getElementById('rising-list').innerHTML = `<p>⏰ 마지막 갱신: ${timeStr}</p>` +
-          (rising.length ? rising.map(i => {
-            const mark = i.news ? '⭐' : '';
-            return `<div>${i.symbol} ${mark}${i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : ''}</div>`;
-          }).join('<hr>') : '📢 급등 종목 없음');
+        const renderSymbol = i => {
+          const mark = i.news ? '⭐' : '';
+          const newsLink = i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : '';
+          return `<div>${i.symbol} ${mark}${newsLink}</div>`;
+        };
 
-        const signal = data.signal || [];
+        document.getElementById('rising-list').innerHTML = `<p>⏰ 마지막 갱신: ${timeStr}</p>` +
+          (data.rising?.length ? data.rising.map(renderSymbol).join('<hr>') : '📢 급등 종목 없음');
+
         document.getElementById('signal-list').innerHTML = `<p>⏰ 마지막 갱신: ${timeStr}</p>` +
-          (signal.length ? signal.map(i => {
-            const mark = i.news ? '⭐' : '';
-            return `<div>${i.symbol} ${mark}${i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : ''}</div>`;
-          }).join('<hr>') : '📢 조짐 종목 없음');
+          (data.signal?.length ? data.signal.map(renderSymbol).join('<hr>') : '📢 조짐 종목 없음');
 
         const newsData = data.positive_news || {};
         let newsHTML = '';
@@ -228,12 +226,13 @@
               const safeTitle = n.title.replace(/[`\\]/g, '\\$&').replace(/'/g, "\\'");
               const symbol = n.symbol ? `🧾 ${n.symbol}` : '';
               const time = n.time ? `🕒 ${n.time} KST` : '';
-              const meta = symbol || time ? `<div class="news-meta">${symbol}${symbol && time ? ' ｜ ' : ''}${time}</div>` : '';
+              const source = n.source ? `📰 ${n.source}` : '';
+              const meta = [symbol, time, source].filter(Boolean).join(' ｜ ');
               return `
                 <div class="news-item">
                   <button class="delete-btn" onclick="confirmDelete('${date}', \`${safeTitle}\`)">🗑️</button>
                   <div class="news-title"><a href="${n.link}" target="_blank">${n.title}</a></div>
-                  ${meta}
+                  ${meta ? `<div class="news-meta">${meta}</div>` : ''}
                 </div>
               `;
             }).join('');
