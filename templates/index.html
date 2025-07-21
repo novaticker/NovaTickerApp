@@ -205,7 +205,7 @@
         const renderSymbol = i => {
           const mark = i.news ? '⭐' : '';
           const newsLink = i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : '';
-          return `<div>${i.symbol} ${mark}${newsLink}</div>`;
+          return `<div>${i.label} ${mark}${newsLink}</div>`;
         };
 
         document.getElementById('rising-list').innerHTML = `<p>⏰ 마지막 갱신: ${timeStr}</p>` +
