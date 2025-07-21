@@ -5,10 +5,10 @@ from datetime import datetime
 import json
 import os
 import requests
-from bs4 import BeautifulSoup
 from googletrans import Translator
 import pytz
 import re
+from bs4 import BeautifulSoup
 
 app = Flask(__name__, template_folder='templates')
 CORS(app)
@@ -20,7 +20,11 @@ NEWS_API_KEYS = [
 ]
 
 NEWS_FILE = 'positive_news.json'
-STOCK_SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC', 'BMY', 'MAR', 'BBIO', 'BHC', 'FPXI', 'TSE', 'ROKT', 'FPX', 'NIO', 'BABA', 'BIDU', 'JD', 'ABBV']
+STOCK_SYMBOLS = [
+    'APLD', 'CYCC', 'LMFA', 'CW', 'SAIC',
+    'BMY', 'MAR', 'BBIO', 'BHC', 'FPXI', 'TSE', 'ROKT', 'FPX',
+    'NIO', 'BABA', 'BIDU', 'JD', 'ABBV'
+]
 ALLOWED_CHINA_SYMBOLS = ['nio', 'baba', 'bidu', 'jd']
 KST = pytz.timezone('Asia/Seoul')
 translator = Translator()
@@ -115,12 +119,17 @@ def crawl_yahoo():
         headers = {'User-Agent': 'Mozilla/5.0'}
         res = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(res.text, 'html.parser')
-        articles = soup.select('h3 a')
-        news_list = []
+        items = soup.select('li.js-stream-content')
 
-        for a in articles:
-            title = a.get_text(strip=True)
-            link = a.get('href')
+        news_list = []
+        for item in items:
+            a_tag = item.find('a')
+            if not a_tag or not a_tag.get('href'):
+                continue
+            title = a_tag.get_text(strip=True)
+            if len(title) < 6:  # 너무 짧은 제목 필터링
+                continue
+            link = a_tag['href']
             if not link.startswith('http'):
                 link = 'https://finance.yahoo.com' + link
 
@@ -146,42 +155,6 @@ def crawl_yahoo():
         print(f"[Yahoo] 실패: {e}")
         return []
 
-def crawl_motley():
-    print("[Motley Fool] 크롤링 시작")
-    try:
-        url = 'https://www.fool.com/investing/stock-market/'
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        res = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(res.text, 'html.parser')
-        articles = soup.select('a.card-title')
-
-        news_list = []
-        for a in articles:
-            title = a.get_text(strip=True)
-            link = 'https://www.fool.com' + a.get('href')
-
-            kst_dt = datetime.now(KST)
-            try:
-                translated = translator.translate(title, dest='ko').text
-            except:
-                translated = title
-
-            symbol = extract_symbol(title)
-            news_list.append({
-                'title': translated,
-                'link': link,
-                'symbol': symbol,
-                'time': kst_dt.strftime('%H:%M'),
-                'date': kst_dt.strftime('%Y-%m-%d'),
-                'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
-                'source': 'Motley Fool'
-            })
-
-        return news_list
-    except Exception as e:
-        print(f"[Motley Fool] 실패: {e}")
-        return []
-
 def update_news():
     if os.path.exists(NEWS_FILE):
         with open(NEWS_FILE, 'r', encoding='utf-8') as f:
@@ -205,8 +178,8 @@ def update_news():
                 all_keys.add(uniq)
         api_key_index = (api_key_index + 1) % len(NEWS_API_KEYS)
 
-    # Yahoo + Motley
-    for item in crawl_yahoo() + crawl_motley():
+    yahoo_news = crawl_yahoo()
+    for item in yahoo_news:
         date = item['date']
         uniq = item['title'] + item['link']
         if uniq not in all_keys:
