@@ -115,7 +115,8 @@ def crawl_stocktitan():
                 continue
             link = title_tag.get('href')
             title = title_tag.text.strip()
-            symbol = meta_tag.text.strip().split()[0].replace(':', '').upper()
+            meta = meta_tag.text.strip()
+            symbol = meta.split()[0].replace(':', '').upper()
 
             if not link.startswith('http'):
                 link = 'https://www.stocktitan.net' + link
