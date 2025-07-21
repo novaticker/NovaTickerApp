@@ -19,7 +19,11 @@ NEWS_API_KEYS = [
 ]
 
 NEWS_FILE = 'positive_news.json'
-STOCK_SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC']
+STOCK_SYMBOLS = [
+    'APLD', 'CYCC', 'LMFA', 'CW', 'SAIC',
+    'BMY', 'MAR', 'BBIO', 'BHC', 'FPXI', 'TSE', 'ROKT', 'FPX',
+    'NIO', 'BABA', 'BIDU', 'JD'
+]
 ALLOWED_CHINA_SYMBOLS = ['nio', 'baba', 'bidu', 'jd']
 KST = pytz.timezone('Asia/Seoul')
 translator = Translator()
@@ -81,13 +85,11 @@ def fetch_news(query, api_key):
         except:
             translated = title
 
-        matched_symbol = ''
+        matched_symbol = 'N/A'
         for sym in STOCK_SYMBOLS:
             if sym.lower() in title.lower():
                 matched_symbol = sym
                 break
-        if not matched_symbol:
-            matched_symbol = "N/A"
 
         filtered.append({
             'title': translated,
@@ -167,13 +169,11 @@ def update_news():
                 all_keys.add(uniq)
         api_key_index = (api_key_index + 1) % len(NEWS_API_KEYS)
 
+    # StockTitan 뉴스는 중복 확인 없이 무조건 저장
     titan_news = crawl_stocktitan()
     for item in titan_news:
         date = item['date']
-        uniq = item['title'] + item['link']
-        if uniq not in all_keys:
-            data.setdefault(date, []).append(item)
-            all_keys.add(uniq)
+        data.setdefault(date, []).append(item)
 
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
