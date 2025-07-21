@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 from googletrans import Translator
 import pytz
+import re
 
 app = Flask(__name__, template_folder='templates')
 CORS(app)
@@ -22,7 +23,7 @@ NEWS_FILE = 'positive_news.json'
 STOCK_SYMBOLS = [
     'APLD', 'CYCC', 'LMFA', 'CW', 'SAIC',
     'BMY', 'MAR', 'BBIO', 'BHC', 'FPXI', 'TSE', 'ROKT', 'FPX',
-    'NIO', 'BABA', 'BIDU', 'JD'
+    'NIO', 'BABA', 'BIDU', 'JD', 'ABBV'
 ]
 ALLOWED_CHINA_SYMBOLS = ['nio', 'baba', 'bidu', 'jd']
 KST = pytz.timezone('Asia/Seoul')
@@ -87,7 +88,8 @@ def fetch_news(query, api_key):
 
         matched_symbol = 'N/A'
         for sym in STOCK_SYMBOLS:
-            if sym.lower() in title.lower():
+            pattern = rf'\b{sym}\b'
+            if re.search(pattern, title, re.IGNORECASE):
                 matched_symbol = sym
                 break
 
@@ -169,11 +171,13 @@ def update_news():
                 all_keys.add(uniq)
         api_key_index = (api_key_index + 1) % len(NEWS_API_KEYS)
 
-    # StockTitan 뉴스는 중복 확인 없이 무조건 저장
     titan_news = crawl_stocktitan()
     for item in titan_news:
         date = item['date']
-        data.setdefault(date, []).append(item)
+        uniq = item['title'] + item['link']
+        if uniq not in all_keys:
+            data.setdefault(date, []).append(item)
+            all_keys.add(uniq)
 
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
