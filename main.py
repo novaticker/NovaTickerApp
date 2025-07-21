@@ -1,4 +1,3 @@
-# main.py
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 import yfinance as yf
@@ -207,7 +206,7 @@ def get_today_top_gainers():
         res = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(res.text, 'html.parser')
         rows = soup.select('table tbody tr')
-        gainers = []
+        gainers, signals = [], []
 
         for row in rows:
             cols = row.find_all('td')
@@ -219,18 +218,26 @@ def get_today_top_gainers():
             change_percent = cols[4].text.strip().replace('%', '').replace('+', '')
             try:
                 percent = float(change_percent)
+                item = {
+                    'symbol': symbol,
+                    'name': name,
+                    'price': price,
+                    'change': percent
+                }
                 if percent >= 5:
-                    gainers.append({
-                        'symbol': symbol,
-                        'name': name,
-                        'price': price,
-                        'change': percent
-                    })
+                    gainers.append(item)
+                # 모든 퍼센트에서 거래량이 급증하면 조짐으로 표시
+                df = yf.download(symbol, period="5d", interval="1m")
+                if len(df) >= 4:
+                    vol_now = df['Volume'].iloc[-1]
+                    vol_prev = df['Volume'].iloc[-4:-1].mean()
+                    if vol_now > vol_prev * 2:
+                        signals.append(item)
             except:
                 continue
-        return gainers
+        return gainers, signals
     except:
-        return []
+        return [], []
 
 @app.route('/data.json')
 def get_data():
@@ -240,8 +247,7 @@ def get_data():
     except:
         raw_news = {}
     try:
-        rising = get_today_top_gainers()
-        signal = []
+        rising, signal = get_today_top_gainers()
     except:
         rising, signal = [], []
     updated_time = datetime.utcnow().isoformat()
