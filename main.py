@@ -20,11 +20,7 @@ NEWS_API_KEYS = [
 ]
 
 NEWS_FILE = 'positive_news.json'
-STOCK_SYMBOLS = [
-    'APLD', 'CYCC', 'LMFA', 'CW', 'SAIC',
-    'BMY', 'MAR', 'BBIO', 'BHC', 'FPXI', 'TSE', 'ROKT', 'FPX',
-    'NIO', 'BABA', 'BIDU', 'JD', 'ABBV'
-]
+STOCK_SYMBOLS = ['APLD', 'CYCC', 'LMFA', 'CW', 'SAIC', 'BMY', 'MAR', 'BBIO', 'BHC', 'FPXI', 'TSE', 'ROKT', 'FPX', 'NIO', 'BABA', 'BIDU', 'JD', 'ABBV']
 ALLOWED_CHINA_SYMBOLS = ['nio', 'baba', 'bidu', 'jd']
 KST = pytz.timezone('Asia/Seoul')
 translator = Translator()
@@ -112,49 +108,78 @@ def fetch_news(query, api_key):
 
     return filtered
 
-def crawl_marketwatch():
-    print("[MarketWatch] 뉴스 크롤링 시작")
-    url = "https://www.marketwatch.com/latest-news?mod=top_nav"
-    headers = {'User-Agent': 'Mozilla/5.0'}
+def crawl_yahoo():
+    print("[Yahoo] 크롤링 시작")
     try:
+        url = 'https://finance.yahoo.com/topic/stock-market-news'
+        headers = {'User-Agent': 'Mozilla/5.0'}
         res = requests.get(url, headers=headers, timeout=10)
-        res.raise_for_status()
         soup = BeautifulSoup(res.text, 'html.parser')
-        articles = soup.select('.collection__elements .article__content')
+        articles = soup.select('h3 a')
         news_list = []
 
-        for article in articles:
-            a_tag = article.select_one('a')
-            if not a_tag:
-                continue
-            title = a_tag.get_text(strip=True)
-            link = a_tag['href']
-            if not title or not link.startswith('http'):
-                continue
+        for a in articles:
+            title = a.get_text(strip=True)
+            link = a.get('href')
+            if not link.startswith('http'):
+                link = 'https://finance.yahoo.com' + link
 
-            if not is_positive_news({'title': title, 'content': ''}):
-                continue
-
+            kst_dt = datetime.now(KST)
             try:
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
 
-            kst_dt = datetime.now(KST)
+            symbol = extract_symbol(title)
             news_list.append({
                 'title': translated,
                 'link': link,
-                'symbol': extract_symbol(title),
+                'symbol': symbol,
                 'time': kst_dt.strftime('%H:%M'),
                 'date': kst_dt.strftime('%Y-%m-%d'),
                 'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
-                'source': 'MarketWatch'
+                'source': 'Yahoo Finance'
             })
 
-        print(f"[MarketWatch] 뉴스 {len(news_list)}건 수집 완료")
         return news_list
     except Exception as e:
-        print(f"[MarketWatch] 크롤링 실패: {e}")
+        print(f"[Yahoo] 실패: {e}")
+        return []
+
+def crawl_motley():
+    print("[Motley Fool] 크롤링 시작")
+    try:
+        url = 'https://www.fool.com/investing/stock-market/'
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        articles = soup.select('a.card-title')
+
+        news_list = []
+        for a in articles:
+            title = a.get_text(strip=True)
+            link = 'https://www.fool.com' + a.get('href')
+
+            kst_dt = datetime.now(KST)
+            try:
+                translated = translator.translate(title, dest='ko').text
+            except:
+                translated = title
+
+            symbol = extract_symbol(title)
+            news_list.append({
+                'title': translated,
+                'link': link,
+                'symbol': symbol,
+                'time': kst_dt.strftime('%H:%M'),
+                'date': kst_dt.strftime('%Y-%m-%d'),
+                'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                'source': 'Motley Fool'
+            })
+
+        return news_list
+    except Exception as e:
+        print(f"[Motley Fool] 실패: {e}")
         return []
 
 def update_news():
@@ -180,8 +205,8 @@ def update_news():
                 all_keys.add(uniq)
         api_key_index = (api_key_index + 1) % len(NEWS_API_KEYS)
 
-    marketwatch_news = crawl_marketwatch()
-    for item in marketwatch_news:
+    # Yahoo + Motley
+    for item in crawl_yahoo() + crawl_motley():
         date = item['date']
         uniq = item['title'] + item['link']
         if uniq not in all_keys:
