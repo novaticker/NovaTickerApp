@@ -127,16 +127,16 @@ def crawl_stocktitan():
         news_list = []
         for card in cards:
             title_tag = card.select_one('.news-card__title a')
+            symbol_tag = card.select_one('.news-card__symbols span')
             if not title_tag:
                 continue
             title = title_tag.get_text(strip=True)
             link = title_tag.get('href')
             if not link.startswith('http'):
                 link = 'https://www.stocktitan.net' + link
+            symbol = symbol_tag.get_text(strip=True) if symbol_tag else extract_symbol(title)
 
-            symbol = extract_symbol(title)
             kst_dt = datetime.now(KST)
-
             try:
                 translated = translator.translate(title, dest='ko').text
             except:
