@@ -1,3 +1,4 @@
+# main.py
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 import yfinance as yf
@@ -20,39 +21,12 @@ NEWS_API_KEYS = [
 ]
 
 NEWS_FILE = 'positive_news.json'
-STOCK_SYMBOLS = [
-    'APLD', 'CYCC', 'LMFA', 'CW', 'SAIC',
-    'BMY', 'MAR', 'BBIO', 'BHC', 'FPXI', 'TSE', 'ROKT', 'FPX',
-    'NIO', 'BABA', 'BIDU', 'JD', 'ABBV'
-]
-ALLOWED_CHINA_SYMBOLS = ['nio', 'baba', 'bidu', 'jd']
 KST = pytz.timezone('Asia/Seoul')
 translator = Translator()
 
 @app.route('/')
 def index():
     return render_template('index.html')
-
-def is_positive_news(news):
-    title = news.get('title', '').lower()
-    content = news.get('content', '').lower()
-    positive_keywords = [
-        'fda', 'approval', 'clinical', 'trial', 'biotech', 'pharma',
-        'ipo', 'listing', 'merger', 'acquisition', 'partnership',
-        'investment', 'skyrocket', 'surge', 'breakout', 'jump',
-        'launch', 'open', 'expand', 'expansion', 'event',
-        'new technology', 'unveil', 'announce', 'release'
-    ]
-    exclude_keywords = [
-        'crypto', 'bitcoin', 'ethereum',
-        'lawsuit', 'china', 'hong kong', 'delisting', 'sec investigation'
-    ]
-    if not any(kw in title or kw in content for kw in positive_keywords):
-        return False
-    if any(kw in title or kw in content for kw in exclude_keywords):
-        if not any(sym in title or sym in content for sym in ALLOWED_CHINA_SYMBOLS):
-            return False
-    return True
 
 def extract_symbol(text):
     match = re.search(r'\((NASDAQ|NYSE|NYSEARCA|AMEX)[:：]?\s*([A-Z]+)\)', text, re.IGNORECASE)
@@ -61,9 +35,6 @@ def extract_symbol(text):
     match2 = re.search(r'\b([A-Z]{2,5})[:：]', text)
     if match2:
         return match2.group(1).upper()
-    for sym in STOCK_SYMBOLS:
-        if sym.lower() in text.lower():
-            return sym
     return 'N/A'
 
 def fetch_news(query, api_key):
@@ -76,15 +47,13 @@ def fetch_news(query, api_key):
         return []
 
     articles = data.get('results', [])
-    filtered = []
+    results = []
 
     for a in articles:
         title = a.get('title', '')
         link = a.get('link', '')
         pub_utc = a.get('pubDate')
         if not title or not link or not pub_utc:
-            continue
-        if not is_positive_news(a):
             continue
 
         try:
@@ -100,7 +69,7 @@ def fetch_news(query, api_key):
 
         matched_symbol = extract_symbol(title)
 
-        filtered.append({
+        results.append({
             'title': translated,
             'link': link.strip(),
             'symbol': matched_symbol,
@@ -110,7 +79,7 @@ def fetch_news(query, api_key):
             'source': 'NewsData'
         })
 
-    return filtered
+    return results
 
 def crawl_yahoo():
     try:
@@ -156,7 +125,7 @@ def crawl_prnewswire():
         headers = {'User-Agent': 'Mozilla/5.0'}
         res = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(res.text, 'html.parser')
-        items = soup.select('div.card')[:15]  # 최근 15개만
+        items = soup.select('div.card')[:15]
         news_list = []
 
         for item in items:
@@ -199,7 +168,7 @@ def update_news():
             all_keys.add(item['title'] + item['link'])
 
     api_key_index = 0
-    for query in ['nasdaq', 'fda', 'biotech', 'pharma', 'ipo', 'merger', 'investment']:
+    for query in ['nasdaq', 'ipo', 'fda', 'merger', 'pharma']:
         news_items = fetch_news(query, NEWS_API_KEYS[api_key_index])
         for item in news_items:
             date = item['date']
@@ -231,43 +200,37 @@ def trigger_update_news():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-def analyze_stocks():
-    rising, signal = [], []
-    for sym in STOCK_SYMBOLS:
-        try:
-            df = yf.download(sym, period="5d", interval="1m")
-            if len(df) < 4:
-                continue
-            vol_now = df['Volume'].iloc[-1]
-            vol_prev = df['Volume'].iloc[-4:-1].mean()
-            price_now = df['Close'].iloc[-1]
-            price_prev = df['Close'].iloc[-4]
-            change = (price_now - price_prev) / price_prev * 100
-            item = {'symbol': sym, 'volume': int(vol_now), 'change': round(change, 2)}
-            news = get_related_news(sym)
-            if news:
-                item['news'] = news
-            if vol_now > vol_prev * 2:
-                if change >= 3:
-                    rising.append(item)
-                elif change >= 1:
-                    signal.append(item)
-        except:
-            continue
-    return rising, signal
+def get_today_top_gainers():
+    try:
+        url = 'https://finance.yahoo.com/gainers'
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        rows = soup.select('table tbody tr')
+        gainers = []
 
-def get_related_news(symbol):
-    today = datetime.now(KST).strftime('%Y-%m-%d')
-    if not os.path.exists(NEWS_FILE):
-        return None
-    with open(NEWS_FILE, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    today_news = data.get(today, [])
-    for item in today_news:
-        news_symbol = item.get('symbol', '').lower()
-        if symbol.lower() == news_symbol or symbol.lower() in item.get('title', '').lower():
-            return item
-    return None
+        for row in rows:
+            cols = row.find_all('td')
+            if len(cols) < 6:
+                continue
+            symbol = cols[0].text.strip()
+            name = cols[1].text.strip()
+            price = cols[2].text.strip()
+            change_percent = cols[4].text.strip().replace('%', '').replace('+', '')
+            try:
+                percent = float(change_percent)
+                if percent >= 5:
+                    gainers.append({
+                        'symbol': symbol,
+                        'name': name,
+                        'price': price,
+                        'change': percent
+                    })
+            except:
+                continue
+        return gainers
+    except:
+        return []
 
 @app.route('/data.json')
 def get_data():
@@ -277,7 +240,8 @@ def get_data():
     except:
         raw_news = {}
     try:
-        rising, signal = analyze_stocks()
+        rising = get_today_top_gainers()
+        signal = []
     except:
         rising, signal = [], []
     updated_time = datetime.utcnow().isoformat()
