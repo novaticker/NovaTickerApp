@@ -86,7 +86,6 @@ def fetch_news(query, api_key):
             if sym.lower() in title.lower():
                 matched_symbol = sym
                 break
-
         if not matched_symbol:
             matched_symbol = "N/A"
 
@@ -96,7 +95,8 @@ def fetch_news(query, api_key):
             'symbol': matched_symbol,
             'time': kst_dt.strftime('%H:%M'),
             'date': kst_dt.strftime('%Y-%m-%d'),
-            'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S')
+            'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
+            'source': 'NewsData'
         })
 
     return filtered
@@ -115,7 +115,7 @@ def crawl_stocktitan():
                 continue
             link = title_tag.get('href')
             title = title_tag.text.strip()
-            symbol = meta_tag.text.strip().split()[0].replace(':', '')
+            symbol = meta_tag.text.strip().split()[0].replace(':', '').upper()
 
             if not link.startswith('http'):
                 link = 'https://www.stocktitan.net' + link
@@ -135,7 +135,8 @@ def crawl_stocktitan():
                 'symbol': symbol,
                 'time': kst_dt.strftime('%H:%M'),
                 'date': kst_dt.strftime('%Y-%m-%d'),
-                'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S')
+                'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                'source': 'StockTitan'
             })
         return news_list
     except Exception as e:
@@ -242,7 +243,7 @@ def get_data():
     return jsonify({
         'rising': rising,
         'signal': signal,
-        'positive_news': raw_news,  # ✅ 여기가 핵심: 반드시 "positive_news" 키로 감싸서 반환
+        'positive_news': raw_news,
         'updated': updated_time
     })
 
