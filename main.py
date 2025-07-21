@@ -55,7 +55,7 @@ def is_positive_news(news):
     return True
 
 def extract_symbol(text):
-    match = re.search(r'\((?:NASDAQ|NYSE|NYSEARCA|AMEX)\s*[:：]\s*([A-Z]+)\)', text, re.IGNORECASE)
+    match = re.search(r'(?:NASDAQ|NYSE|NYSEARCA|AMEX)\s*[:：]\s*([A-Z]+)', text, re.IGNORECASE)
     if match:
         return match.group(1).upper()
     match2 = re.search(r'\b([A-Z]{2,5})[:：]', text)
@@ -113,29 +113,24 @@ def fetch_news(query, api_key):
     return filtered
 
 def crawl_stocktitan():
-    print("[StockTitan] 크롤링 시작")
-    url = 'https://www.stocktitan.net/news/'
+    print("[StockTitan] 크롤링 시작 (API 우회)")
+    url = "https://www.stocktitan.net/api/newsfeed/today/"
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            'User-Agent': 'Mozilla/5.0'
         }
         res = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(res.text, 'html.parser')
-        cards = soup.select('.news-card')
-
+        res.raise_for_status()
+        data = res.json()
         news_list = []
-        for card in cards:
-            title_tag = card.select_one('.news-card__title a')
-            if not title_tag:
-                continue
-            title = title_tag.text.strip()
-            link = title_tag.get('href')
-            if not link.startswith('http'):
-                link = 'https://www.stocktitan.net' + link
 
-            symbol = extract_symbol(title)
+        for item in data.get('news', []):
+            title = item.get('title', '').strip()
+            link = 'https://www.stocktitan.net' + item.get('url', '').strip()
+            symbols = item.get('symbols', [])
+            symbol = symbols[0].get('ticker', 'N/A') if symbols else 'N/A'
+
             kst_dt = datetime.now(KST)
-
             try:
                 translated = translator.translate(title, dest='ko').text
             except:
@@ -143,7 +138,7 @@ def crawl_stocktitan():
 
             news_list.append({
                 'title': translated,
-                'link': link.strip(),
+                'link': link,
                 'symbol': symbol,
                 'time': kst_dt.strftime('%H:%M'),
                 'date': kst_dt.strftime('%Y-%m-%d'),
