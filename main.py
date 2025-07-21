@@ -58,6 +58,9 @@ def extract_symbol(text):
     match = re.search(r'\((?:NASDAQ|NYSE|NYSEARCA|AMEX)\s*[:：]\s*([A-Z]+)\)', text, re.IGNORECASE)
     if match:
         return match.group(1).upper()
+    match2 = re.search(r'\b([A-Z]{2,5})[:：]', text)
+    if match2:
+        return match2.group(1).upper()
     for sym in STOCK_SYMBOLS:
         if sym.lower() in text.lower():
             return sym
@@ -118,22 +121,26 @@ def crawl_stocktitan():
         }
         res = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(res.text, 'html.parser')
-        news_blocks = soup.select('.news-row')
+        cards = soup.select('.news-card')
+
         news_list = []
-        for block in news_blocks:
-            title_tag = block.select_one('.news-row__title')
+        for card in cards:
+            title_tag = card.select_one('.news-card__title a')
             if not title_tag:
                 continue
+            title = title_tag.text.strip()
             link = title_tag.get('href')
             if not link.startswith('http'):
                 link = 'https://www.stocktitan.net' + link
-            title = title_tag.text.strip()
+
             symbol = extract_symbol(title)
             kst_dt = datetime.now(KST)
+
             try:
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
+
             news_list.append({
                 'title': translated,
                 'link': link.strip(),
@@ -143,6 +150,7 @@ def crawl_stocktitan():
                 'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
                 'source': 'StockTitan'
             })
+
         print(f"[StockTitan] 뉴스 {len(news_list)}건 수집 완료")
         return news_list
     except Exception as e:
