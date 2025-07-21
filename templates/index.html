@@ -80,6 +80,10 @@
     .news-title {
       font-weight: bold;
       color: #58a6ff;
+      text-decoration: none;
+    }
+    .news-title:hover {
+      text-decoration: underline;
     }
     .news-meta {
       font-size: 0.85em;
@@ -229,14 +233,14 @@
             newsHTML += `<h3>📅 ${date}</h3>`;
             newsHTML += newsData[date].map(n => {
               const safeTitle = n.title.replace(/[`\\]/g, '\\$&').replace(/'/g, "\\'");
-              const symbol = n.symbol ? `🧾 ${n.symbol}` : '';
+              const symbol = (n.symbol && n.symbol !== 'N/A') ? `🧾 ${n.symbol}` : '';
               const time = n.time ? `🕒 ${n.time} KST` : '';
               const source = n.source ? `📰 ${n.source}` : '';
               const meta = [symbol, time, source].filter(Boolean).join(' ｜ ');
               return `
                 <div class="news-item">
                   <button class="delete-btn" onclick="confirmDelete('${date}', \`${safeTitle}\`)">🗑️</button>
-                  <div class="news-title">${n.title}</div>
+                  <a class="news-title" href="${n.link}" target="_blank">${n.title}</a>
                   ${meta ? `<div class="news-meta">${meta}</div>` : ''}
                 </div>
               `;
