@@ -54,6 +54,15 @@ def is_positive_news(news):
             return False
     return True
 
+def extract_symbol(text):
+    match = re.search(r'\((?:NASDAQ|NYSE|NYSEARCA|AMEX)\s*[:：]\s*([A-Z]+)\)', text, re.IGNORECASE)
+    if match:
+        return match.group(1).upper()
+    for sym in STOCK_SYMBOLS:
+        if sym.lower() in text.lower():
+            return sym
+    return 'N/A'
+
 def fetch_news(query, api_key):
     url = f'https://newsdata.io/api/1/news?apikey={api_key}&q={query}&country=us&language=en&category=business'
     try:
@@ -86,12 +95,7 @@ def fetch_news(query, api_key):
         except:
             translated = title
 
-        matched_symbol = 'N/A'
-        for sym in STOCK_SYMBOLS:
-            pattern = rf'\b{sym}\b'
-            if re.search(pattern, title, re.IGNORECASE):
-                matched_symbol = sym
-                break
+        matched_symbol = extract_symbol(title)
 
         filtered.append({
             'title': translated,
@@ -119,21 +123,14 @@ def crawl_stocktitan():
                 continue
             link = title_tag.get('href')
             title = title_tag.text.strip()
-            meta = meta_tag.text.strip()
-            symbol = meta.split()[0].replace(':', '').upper()
-
+            symbol = extract_symbol(title)
             if not link.startswith('http'):
                 link = 'https://www.stocktitan.net' + link
-
             kst_dt = datetime.now(KST)
             try:
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
-
-            if not symbol:
-                symbol = "N/A"
-
             news_list.append({
                 'title': translated,
                 'link': link,
@@ -205,12 +202,10 @@ def analyze_stocks():
             price_now = df['Close'].iloc[-1]
             price_prev = df['Close'].iloc[-4]
             change = (price_now - price_prev) / price_prev * 100
-
             item = {'symbol': sym, 'volume': int(vol_now), 'change': round(change, 2)}
             news = get_related_news(sym)
             if news:
                 item['news'] = news
-
             if vol_now > vol_prev * 2:
                 if change >= 3:
                     rising.append(item)
