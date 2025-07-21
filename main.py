@@ -28,7 +28,7 @@ def index():
     return render_template('index.html')
 
 def extract_symbol(text):
-    match = re.search(r'\((NASDAQ|NYSE|NYSEARCA|AMEX)[:：]?\s*([A-Z]+)\)', text, re.IGNORECASE)
+    match = re.search(r'(NASDAQ|NYSE|NYSEARCA|AMEX)[:：]?\s*([A-Z]+)', text, re.IGNORECASE)
     if match:
         return match.group(2).upper()
     match2 = re.search(r'\b([A-Z]{2,5})[:：]', text)
@@ -213,20 +213,17 @@ def get_today_top_gainers():
             if len(cols) < 6:
                 continue
             symbol = cols[0].text.strip()
-            name = cols[1].text.strip()
-            price = cols[2].text.strip()
             change_percent = cols[4].text.strip().replace('%', '').replace('+', '')
             try:
                 percent = float(change_percent)
+                label = f"{symbol} (+{percent:.1f}%)"
                 item = {
                     'symbol': symbol,
-                    'name': name,
-                    'price': price,
-                    'change': percent
+                    'change': percent,
+                    'label': label
                 }
                 if percent >= 5:
                     gainers.append(item)
-                # 모든 퍼센트에서 거래량이 급증하면 조짐으로 표시
                 df = yf.download(symbol, period="5d", interval="1m")
                 if len(df) >= 4:
                     vol_now = df['Volume'].iloc[-1]
