@@ -113,32 +113,29 @@ def fetch_news(query, api_key):
     return filtered
 
 def crawl_yahoo():
-    print("[Yahoo] 크롤링 시작")
     try:
         url = 'https://finance.yahoo.com/topic/stock-market-news'
         headers = {'User-Agent': 'Mozilla/5.0'}
         res = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(res.text, 'html.parser')
         items = soup.select('li.js-stream-content')
-
         news_list = []
+
         for item in items:
             a_tag = item.find('a')
             if not a_tag or not a_tag.get('href'):
                 continue
             title = a_tag.get_text(strip=True)
-            if len(title) < 6:  # 너무 짧은 제목 필터링
+            if len(title) < 6:
                 continue
             link = a_tag['href']
             if not link.startswith('http'):
                 link = 'https://finance.yahoo.com' + link
-
             kst_dt = datetime.now(KST)
             try:
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
-
             symbol = extract_symbol(title)
             news_list.append({
                 'title': translated,
@@ -149,10 +146,44 @@ def crawl_yahoo():
                 'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
                 'source': 'Yahoo Finance'
             })
-
         return news_list
-    except Exception as e:
-        print(f"[Yahoo] 실패: {e}")
+    except:
+        return []
+
+def crawl_prnewswire():
+    try:
+        url = 'https://www.prnewswire.com/news-releases/news-releases-list/'
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        items = soup.select('div.card')[:15]  # 최근 15개만
+        news_list = []
+
+        for item in items:
+            a_tag = item.find('a')
+            if not a_tag:
+                continue
+            title = a_tag.get_text(strip=True)
+            link = 'https://www.prnewswire.com' + a_tag['href']
+            if len(title) < 6:
+                continue
+            kst_dt = datetime.now(KST)
+            try:
+                translated = translator.translate(title, dest='ko').text
+            except:
+                translated = title
+            symbol = extract_symbol(title)
+            news_list.append({
+                'title': translated,
+                'link': link,
+                'symbol': symbol,
+                'time': kst_dt.strftime('%H:%M'),
+                'date': kst_dt.strftime('%Y-%m-%d'),
+                'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                'source': 'PRNewswire'
+            })
+        return news_list
+    except:
         return []
 
 def update_news():
@@ -178,13 +209,13 @@ def update_news():
                 all_keys.add(uniq)
         api_key_index = (api_key_index + 1) % len(NEWS_API_KEYS)
 
-    yahoo_news = crawl_yahoo()
-    for item in yahoo_news:
-        date = item['date']
-        uniq = item['title'] + item['link']
-        if uniq not in all_keys:
-            data.setdefault(date, []).append(item)
-            all_keys.add(uniq)
+    for fetcher in [crawl_yahoo, crawl_prnewswire]:
+        for item in fetcher():
+            date = item['date']
+            uniq = item['title'] + item['link']
+            if uniq not in all_keys:
+                data.setdefault(date, []).append(item)
+                all_keys.add(uniq)
 
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
@@ -221,8 +252,8 @@ def analyze_stocks():
                     rising.append(item)
                 elif change >= 1:
                     signal.append(item)
-        except Exception as e:
-            print(f"[분석 오류] {sym}: {e}")
+        except:
+            continue
     return rising, signal
 
 def get_related_news(symbol):
