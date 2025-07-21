@@ -1,282 +1,275 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>📊 NovaTicker 리치</title>
-  <link rel="stylesheet" href="/static/style.css" />
-  <style>
-    body {
-      font-family: 'Segoe UI', 'Pretendard', sans-serif;
-      background-color: #0d1117;
-      color: #e6edf3;
-      margin: 0;
-      padding: 0 20px;
-    }
-    h1 {
-      text-align: center;
-      font-size: 2.2em;
-      padding: 20px 0;
-      color: #58a6ff;
-      border-bottom: 1px solid #30363d;
-    }
-    .tabs {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 20px;
-      flex-wrap: wrap;
-    }
-    .tab-button {
-      background: #21262d;
-      border: 1px solid #30363d;
-      padding: 10px 18px;
-      border-radius: 8px;
-      cursor: pointer;
-      color: white;
-      font-weight: bold;
-    }
-    .tab-button.active {
-      background: #1f6feb;
-      border-color: #1f6feb;
-    }
-    .content {
-      display: none;
-      margin-top: 20px;
-    }
-    .content.active {
-      display: block;
-    }
-    .filter-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      margin: 15px 0;
-    }
-    .filter-button {
-      background-color: #161b22;
-      border: 1px solid #30363d;
-      padding: 8px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9em;
-      color: #e6edf3;
-    }
-    .filter-button.active {
-      background-color: #f14e4e;
-      color: white;
-    }
-    .news-item {
-      background-color: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 10px;
-      padding: 15px 45px 15px 15px;
-      margin: 10px auto;
-      max-width: 800px;
-      text-align: left;
-      position: relative;
-    }
-    .news-title a {
-      font-weight: bold;
-      color: #58a6ff;
-      text-decoration: none;
-    }
-    .news-title a:hover {
-      text-decoration: underline;
-    }
-    .news-meta {
-      font-size: 0.85em;
-      color: #8b949e;
-      margin-top: 8px;
-      display: flex;
-      justify-content: flex-start;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .delete-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: transparent;
-      border: none;
-      color: #f85149;
-      font-size: 1.4em;
-      cursor: pointer;
-      z-index: 2;
-    }
-    h3 {
-      text-align: left;
-      margin-left: 10%;
-      margin-top: 40px;
-      color: #c9d1d9;
-      border-bottom: 1px solid #30363d;
-      padding-bottom: 5px;
-      width: 80%;
-    }
-    .refresh-button {
-      display: block;
-      margin: 20px auto 10px;
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #1f6feb;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    .refresh-button:hover {
-      background-color: #388bfd;
-    }
-    @media (max-width: 600px) {
-      .filter-button {
-        flex: 1 1 45%;
-      }
-      .news-item {
-        padding: 12px 42px 12px 12px;
-      }
-      .news-meta {
-        justify-content: flex-start;
-      }
-    }
-  </style>
-</head>
-<body>
-  <h1>📊 NovaTicker 리치</h1>
-
-  <button class="refresh-button" onclick="refreshNews()">🔄 뉴스 수동 새로고침</button>
-
-  <div class="tabs">
-    <button class="tab-button active" onclick="showTab('rising')">📈 급등 종목</button>
-    <button class="tab-button" onclick="showTab('signal')">⚠️ 급등 조짐</button>
-    <button class="tab-button" onclick="showTab('news')">📰 호재 뉴스</button>
-  </div>
-
-  <div id="rising" class="content active">
-    <div id="rising-list">⏰ 마지막 갱신: 불러오는 중...</div>
-  </div>
-
-  <div id="signal" class="content">
-    <div id="signal-list">⏰ 마지막 갱신: 불러오는 중...</div>
-  </div>
-
-  <div id="news" class="content">
-    <div class="filter-buttons">
-      <button class="filter-button" onclick="filterNews(event, 'fda')">🧪 FDA 승인 / 임상</button>
-      <button class="filter-button" onclick="filterNews(event, '바이오')">💊 바이오텍 / 제약</button>
-      <button class="filter-button" onclick="filterNews(event, 'ipo')">🆕 신규 상장 (IPO)</button>
-      <button class="filter-button" onclick="filterNews(event, 'merger')">🤝 인수합병 / 파트너십</button>
-      <button class="filter-button" onclick="filterNews(event, '투자')">💰 투자 유치 / 기관 매수</button>
-      <button class="filter-button" onclick="filterNews(event, '급등')">💥 급등 뉴스 / 폭등</button>
-      <button class="filter-button" onclick="resetFilter()">❌ 초기화</button>
-    </div>
-    <div id="news-list">⏰ 뉴스 로딩 중...</div>
-  </div>
-
-  <script>
-    function showTab(tabId) {
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.content').forEach(div => div.classList.remove('active'));
-      document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
-      document.getElementById(tabId).classList.add('active');
-    }
-
-    function filterNews(e, keyword) {
-      document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
-      e.target.classList.add('active');
-      document.querySelectorAll('.news-item').forEach(item => {
-        item.style.display = item.innerText.toLowerCase().includes(keyword.toLowerCase()) ? 'block' : 'none';
-      });
-    }
-
-    function resetFilter() {
-      document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.news-item').forEach(item => item.style.display = 'block');
-    }
-
-    async function loadData() {
-      try {
-        const res = await fetch('/data.json');
-        const data = await res.json();
-        const updatedUTC = new Date(data.updated);
-        const updatedKST = new Date(updatedUTC.getTime() + 9 * 60 * 60 * 1000);
-        const timeStr = updatedKST.toLocaleTimeString('ko-KR', { hour12: false });
-
-        const renderSymbol = i => {
-          const mark = i.news ? '⭐' : '';
-          const newsLink = i.news ? `<div class="news-title"><a href="${i.news.link}" target="_blank">${i.news.title}</a></div>` : '';
-          return `<div>${i.label} ${mark}${newsLink}</div>`;
-        };
-
-        document.getElementById('rising-list').innerHTML = `<p>⏰ 마지막 갱신: ${timeStr}</p>` +
-          (data.rising?.length ? data.rising.map(renderSymbol).join('<hr>') : '📢 급등 종목 없음');
-
-        document.getElementById('signal-list').innerHTML = `<p>⏰ 마지막 갱신: ${timeStr}</p>` +
-          (data.signal?.length ? data.signal.map(renderSymbol).join('<hr>') : '📢 조짐 종목 없음');
-
-        const newsData = data.positive_news || {};
-        let newsHTML = '';
-        const dates = Object.keys(newsData).sort((a, b) => b.localeCompare(a));
-        if (dates.length === 0) {
-          newsHTML = '📢 뉴스 없음';
-        } else {
-          dates.forEach(date => {
-            newsHTML += `<h3>📅 ${date}</h3>`;
-            newsHTML += newsData[date].map(n => {
-              const safeTitle = n.title.replace(/[`\\]/g, '\\$&').replace(/'/g, "\\'");
-              const symbol = n.symbol ? `🧾 ${n.symbol}` : '';
-              const time = n.time ? `🕒 ${n.time} KST` : '';
-              const source = n.source ? `📰 ${n.source}` : '';
-              const meta = [symbol, time, source].filter(Boolean).join(' ｜ ');
-              return `
-                <div class="news-item">
-                  <button class="delete-btn" onclick="confirmDelete('${date}', \`${safeTitle}\`)">🗑️</button>
-                  <div class="news-title"><a href="${n.link}" target="_blank">${n.title}</a></div>
-                  ${meta ? `<div class="news-meta">${meta}</div>` : ''}
-                </div>
-              `;
-            }).join('');
-          });
-        }
-        document.getElementById('news-list').innerHTML = newsHTML;
-      } catch (e) {
-        console.error('❌ 데이터 불러오기 실패:', e);
-        document.getElementById('rising-list').innerText = '⚠️ 급등 종목 로딩 실패';
-        document.getElementById('signal-list').innerText = '⚠️ 조짐 종목 로딩 실패';
-        document.getElementById('news-list').innerText = '⚠️ 뉴스 로딩 실패';
-      }
-    }
-
-    async function confirmDelete(date, title) {
-      if (!confirm("이 뉴스를 삭제하시겠습니까?")) return;
-      const res = await fetch('/delete_news', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, title })
-      });
-      if (res.ok) {
-        alert("🗑️ 뉴스가 삭제되었습니다");
-        loadData();
-      } else {
-        alert("❌ 삭제 실패");
-      }
-    }
-
-    async function refreshNews() {
-      try {
-        const res = await fetch('/update_news');
-        if (res.ok) {
-          alert("✅ 뉴스가 갱신되었습니다!");
-          loadData();
-        } else {
-          alert("❌ 뉴스 갱신 실패");
-        }
-      } catch (e) {
-        alert("❌ 네트워크 오류");
-      }
-    }
-
-    loadData();
-  </script>
-</body>
-</html>
+from flask import Flask, jsonify, request, render_template  
+from flask_cors import CORS  
+import yfinance as yf  
+from datetime import datetime  
+import json  
+import os  
+import requests  
+from googletrans import Translator  
+import pytz  
+import re  
+from bs4 import BeautifulSoup  
+  
+app = Flask(__name__, template_folder='templates')  
+CORS(app)  
+  
+NEWS_API_KEYS = [  
+    'pub_af7cbc0a338a4f64aeba8b044a544dca',  
+    'pub_dc30774b54994201bbe1e8ca725ba61f',  
+    'pub_cfed46877d8d41668ad220429f779cc3'  
+]  
+  
+NEWS_FILE = 'positive_news.json'  
+KST = pytz.timezone('Asia/Seoul')  
+translator = Translator()  
+  
+@app.route('/')  
+def index():  
+    return render_template('index.html')  
+  
+def extract_symbol(text):  
+    match = re.search(r'(NASDAQ|NYSE|NYSEARCA|AMEX)[:：]?\s*([A-Z]+)', text, re.IGNORECASE)  
+    if match:  
+        return match.group(2).upper()  
+    match2 = re.search(r'\b([A-Z]{2,5})[:：]', text)  
+    if match2:  
+        return match2.group(1).upper()  
+    return 'N/A'  
+  
+def fetch_news(query, api_key):  
+    url = f'https://newsdata.io/api/1/news?apikey={api_key}&q={query}&country=us&language=en&category=business'  
+    try:  
+        res = requests.get(url, timeout=10)  
+        res.raise_for_status()  
+        data = res.json()  
+    except:  
+        return []  
+  
+    articles = data.get('results', [])  
+    results = []  
+  
+    for a in articles:  
+        title = a.get('title', '')  
+        link = a.get('link', '')  
+        pub_utc = a.get('pubDate')  
+        if not title or not link or not pub_utc:  
+            continue  
+  
+        try:  
+            utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S")  
+            kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(KST)  
+        except:  
+            kst_dt = datetime.now(KST)  
+  
+        try:  
+            translated = translator.translate(title, dest='ko').text  
+        except:  
+            translated = title  
+  
+        matched_symbol = extract_symbol(title)  
+  
+        results.append({  
+            'title': translated,  
+            'link': link.strip(),  
+            'symbol': matched_symbol,  
+            'time': kst_dt.strftime('%H:%M'),  
+            'date': kst_dt.strftime('%Y-%m-%d'),  
+            'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),  
+            'source': 'NewsData'  
+        })  
+  
+    return results  
+  
+def crawl_yahoo():  
+    try:  
+        url = 'https://finance.yahoo.com/topic/stock-market-news'  
+        headers = {'User-Agent': 'Mozilla/5.0'}  
+        res = requests.get(url, headers=headers, timeout=10)  
+        soup = BeautifulSoup(res.text, 'html.parser')  
+        items = soup.select('li.js-stream-content')  
+        news_list = []  
+  
+        for item in items:  
+            a_tag = item.find('a')  
+            if not a_tag or not a_tag.get('href'):  
+                continue  
+            title = a_tag.get_text(strip=True)  
+            if len(title) < 6:  
+                continue  
+            link = a_tag['href']  
+            if not link.startswith('http'):  
+                link = 'https://finance.yahoo.com' + link  
+            kst_dt = datetime.now(KST)  
+            try:  
+                translated = translator.translate(title, dest='ko').text  
+            except:  
+                translated = title  
+            symbol = extract_symbol(title)  
+            news_list.append({  
+                'title': translated,  
+                'link': link,  
+                'symbol': symbol,  
+                'time': kst_dt.strftime('%H:%M'),  
+                'date': kst_dt.strftime('%Y-%m-%d'),  
+                'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),  
+                'source': 'Yahoo Finance'  
+            })  
+        return news_list  
+    except:  
+        return []  
+  
+def crawl_prnewswire():  
+    try:  
+        url = 'https://www.prnewswire.com/news-releases/news-releases-list/'  
+        headers = {'User-Agent': 'Mozilla/5.0'}  
+        res = requests.get(url, headers=headers, timeout=10)  
+        soup = BeautifulSoup(res.text, 'html.parser')  
+        items = soup.select('div.card')[:15]  
+        news_list = []  
+  
+        for item in items:  
+            a_tag = item.find('a')  
+            if not a_tag:  
+                continue  
+            title = a_tag.get_text(strip=True)  
+            link = 'https://www.prnewswire.com' + a_tag['href']  
+            if len(title) < 6:  
+                continue  
+            kst_dt = datetime.now(KST)  
+            try:  
+                translated = translator.translate(title, dest='ko').text  
+            except:  
+                translated = title  
+            symbol = extract_symbol(title)  
+            news_list.append({  
+                'title': translated,  
+                'link': link,  
+                'symbol': symbol,  
+                'time': kst_dt.strftime('%H:%M'),  
+                'date': kst_dt.strftime('%Y-%m-%d'),  
+                'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),  
+                'source': 'PRNewswire'  
+            })  
+        return news_list  
+    except:  
+        return []  
+  
+def update_news():  
+    if os.path.exists(NEWS_FILE):  
+        with open(NEWS_FILE, 'r', encoding='utf-8') as f:  
+            data = json.load(f)  
+    else:  
+        data = {}  
+  
+    all_keys = set()  
+    for date_items in data.values():  
+        for item in date_items:  
+            all_keys.add(item['title'] + item['link'])  
+  
+    api_key_index = 0  
+    for query in ['nasdaq', 'ipo', 'fda', 'merger', 'pharma']:  
+        news_items = fetch_news(query, NEWS_API_KEYS[api_key_index])  
+        for item in news_items:  
+            date = item['date']  
+            uniq = item['title'] + item['link']  
+            if uniq not in all_keys:  
+                data.setdefault(date, []).append(item)  
+                all_keys.add(uniq)  
+        api_key_index = (api_key_index + 1) % len(NEWS_API_KEYS)  
+  
+    for fetcher in [crawl_yahoo, crawl_prnewswire]:  
+        for item in fetcher():  
+            date = item['date']  
+            uniq = item['title'] + item['link']  
+            if uniq not in all_keys:  
+                data.setdefault(date, []).append(item)  
+                all_keys.add(uniq)  
+  
+    for date in data:  
+        data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)  
+  
+    with open(NEWS_FILE, 'w', encoding='utf-8') as f:  
+        json.dump(data, f, ensure_ascii=False, indent=2)  
+  
+@app.route('/update_news')  
+def trigger_update_news():  
+    try:  
+        update_news()  
+        return jsonify({'status': 'ok'})  
+    except Exception as e:  
+        return jsonify({'status': 'error', 'message': str(e)}), 500  
+  
+def get_today_top_gainers():  
+    try:  
+        url = 'https://finance.yahoo.com/gainers'  
+        headers = {'User-Agent': 'Mozilla/5.0'}  
+        res = requests.get(url, headers=headers, timeout=10)  
+        soup = BeautifulSoup(res.text, 'html.parser')  
+        rows = soup.select('table tbody tr')  
+        gainers, signals = [], []  
+  
+        for row in rows:  
+            cols = row.find_all('td')  
+            if len(cols) < 6:  
+                continue  
+            symbol = cols[0].text.strip()  
+            change_percent = cols[4].text.strip().replace('%', '').replace('+', '')  
+            try:  
+                percent = float(change_percent)  
+                label = f"{symbol} (+{percent:.1f}%)"  
+                item = {  
+                    'symbol': symbol,  
+                    'change': percent,  
+                    'label': label  
+                }  
+                if percent >= 5:  
+                    gainers.append(item)  
+                df = yf.download(symbol, period="5d", interval="1m")  
+                if len(df) >= 4:  
+                    vol_now = df['Volume'].iloc[-1]  
+                    vol_prev = df['Volume'].iloc[-4:-1].mean()  
+                    if vol_now > vol_prev * 2:  
+                        signals.append(item)  
+            except:  
+                continue  
+        return gainers, signals  
+    except:  
+        return [], []  
+  
+@app.route('/data.json')  
+def get_data():  
+    try:  
+        with open(NEWS_FILE, 'r', encoding='utf-8') as f:  
+            raw_news = json.load(f)  
+    except:  
+        raw_news = {}  
+    try:  
+        rising, signal = get_today_top_gainers()  
+    except:  
+        rising, signal = [], []  
+    updated_time = datetime.utcnow().isoformat()  
+    return jsonify({  
+        'rising': rising,  
+        'signal': signal,  
+        'positive_news': raw_news,  
+        'updated': updated_time  
+    })  
+  
+@app.route('/delete_news', methods=['POST'])  
+def delete_news():  
+    req = request.get_json()  
+    date = req.get('date')  
+    title = req.get('title')  
+    if not os.path.exists(NEWS_FILE):  
+        return jsonify({'error': 'no file'}), 404  
+    with open(NEWS_FILE, 'r', encoding='utf-8') as f:  
+        data = json.load(f)  
+    if date in data:  
+        data[date] = [n for n in data[date] if n['title'] != title]  
+        with open(NEWS_FILE, 'w', encoding='utf-8') as f:  
+            json.dump(data, f, ensure_ascii=False, indent=2)  
+        return jsonify({'status': 'deleted'})  
+    return jsonify({'error': 'not found'}), 404  
+  
+if __name__ == '__main__':  
+    app.run(host='0.0.0.0', port=8080, debug=False)
