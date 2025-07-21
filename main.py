@@ -99,7 +99,7 @@ def fetch_news(query, api_key):
 
         filtered.append({
             'title': translated,
-            'link': link,
+            'link': link.strip(),
             'symbol': matched_symbol,
             'time': kst_dt.strftime('%H:%M'),
             'date': kst_dt.strftime('%Y-%m-%d'),
@@ -110,22 +110,25 @@ def fetch_news(query, api_key):
     return filtered
 
 def crawl_stocktitan():
+    print("[StockTitan] 크롤링 시작")
     url = 'https://www.stocktitan.net/news/'
     try:
-        res = requests.get(url, timeout=10)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        }
+        res = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(res.text, 'html.parser')
         news_blocks = soup.select('.news-row')
         news_list = []
         for block in news_blocks:
             title_tag = block.select_one('.news-row__title')
-            meta_tag = block.select_one('.news-row__publisher')
-            if not title_tag or not meta_tag:
+            if not title_tag:
                 continue
             link = title_tag.get('href')
-            title = title_tag.text.strip()
-            symbol = extract_symbol(title)
             if not link.startswith('http'):
                 link = 'https://www.stocktitan.net' + link
+            title = title_tag.text.strip()
+            symbol = extract_symbol(title)
             kst_dt = datetime.now(KST)
             try:
                 translated = translator.translate(title, dest='ko').text
@@ -133,13 +136,14 @@ def crawl_stocktitan():
                 translated = title
             news_list.append({
                 'title': translated,
-                'link': link,
+                'link': link.strip(),
                 'symbol': symbol,
                 'time': kst_dt.strftime('%H:%M'),
                 'date': kst_dt.strftime('%Y-%m-%d'),
                 'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
                 'source': 'StockTitan'
             })
+        print(f"[StockTitan] 뉴스 {len(news_list)}건 수집 완료")
         return news_list
     except Exception as e:
         print(f"[StockTitan] 크롤링 실패: {e}")
