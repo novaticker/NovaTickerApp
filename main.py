@@ -55,9 +55,9 @@ def is_positive_news(news):
     return True
 
 def extract_symbol(text):
-    match = re.search(r'(?:NASDAQ|NYSE|NYSEARCA|AMEX)\s*[:：]\s*([A-Z]+)', text, re.IGNORECASE)
+    match = re.search(r'\((NASDAQ|NYSE|NYSEARCA|AMEX)[:：]?\s*([A-Z]+)\)', text, re.IGNORECASE)
     if match:
-        return match.group(1).upper()
+        return match.group(2).upper()
     match2 = re.search(r'\b([A-Z]{2,5})[:：]', text)
     if match2:
         return match2.group(1).upper()
@@ -113,24 +113,30 @@ def fetch_news(query, api_key):
     return filtered
 
 def crawl_stocktitan():
-    print("[StockTitan] 크롤링 시작 (API 우회)")
-    url = "https://www.stocktitan.net/api/newsfeed/today/"
+    print("[StockTitan] 크롤링 시작 (HTML 파싱)")
+    url = "https://www.stocktitan.net/news/"
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0'
         }
         res = requests.get(url, headers=headers, timeout=10)
         res.raise_for_status()
-        data = res.json()
+        soup = BeautifulSoup(res.text, 'html.parser')
+        cards = soup.select('.news-card')
+
         news_list = []
+        for card in cards:
+            title_tag = card.select_one('.news-card__title a')
+            if not title_tag:
+                continue
+            title = title_tag.get_text(strip=True)
+            link = title_tag.get('href')
+            if not link.startswith('http'):
+                link = 'https://www.stocktitan.net' + link
 
-        for item in data.get('news', []):
-            title = item.get('title', '').strip()
-            link = 'https://www.stocktitan.net' + item.get('url', '').strip()
-            symbols = item.get('symbols', [])
-            symbol = symbols[0].get('ticker', 'N/A') if symbols else 'N/A'
-
+            symbol = extract_symbol(title)
             kst_dt = datetime.now(KST)
+
             try:
                 translated = translator.translate(title, dest='ko').text
             except:
