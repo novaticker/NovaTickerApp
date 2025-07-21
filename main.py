@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 import os
 import requests
+from bs4 import BeautifulSoup
 from googletrans import Translator
 import pytz
 import re
@@ -112,24 +113,29 @@ def fetch_news(query, api_key):
     return filtered
 
 def crawl_stocktitan():
-    print("[StockTitan] 크롤링 시작 (API 우회)")
-    url = "https://www.stocktitan.net/api/newsfeed/today/"
+    print("[StockTitan] 크롤링 시작")
+    url = 'https://www.stocktitan.net/news/'
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
         }
         res = requests.get(url, headers=headers, timeout=10)
-        res.raise_for_status()
-        data = res.json()
+        soup = BeautifulSoup(res.text, 'html.parser')
+        cards = soup.select('.news-card')
+
         news_list = []
+        for card in cards:
+            title_tag = card.select_one('.news-card__title a')
+            if not title_tag:
+                continue
+            title = title_tag.text.strip()
+            link = title_tag.get('href')
+            if not link.startswith('http'):
+                link = 'https://www.stocktitan.net' + link
 
-        for item in data.get('news', []):
-            title = item.get('title', '').strip()
-            link = 'https://www.stocktitan.net' + item.get('url', '').strip()
-            symbols = item.get('symbols', [])
-            symbol = symbols[0].get('ticker', 'N/A') if symbols else 'N/A'
-
+            symbol = extract_symbol(title)
             kst_dt = datetime.now(KST)
+
             try:
                 translated = translator.translate(title, dest='ko').text
             except:
@@ -137,7 +143,7 @@ def crawl_stocktitan():
 
             news_list.append({
                 'title': translated,
-                'link': link,
+                'link': link.strip(),
                 'symbol': symbol,
                 'time': kst_dt.strftime('%H:%M'),
                 'date': kst_dt.strftime('%Y-%m-%d'),
