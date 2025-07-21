@@ -112,50 +112,49 @@ def fetch_news(query, api_key):
 
     return filtered
 
-def crawl_stocktitan():
-    print("[StockTitan] 크롤링 시작 (HTML 파싱)")
-    url = "https://www.stocktitan.net/news/"
+def crawl_marketwatch():
+    print("[MarketWatch] 뉴스 크롤링 시작")
+    url = "https://www.marketwatch.com/latest-news?mod=top_nav"
+    headers = {'User-Agent': 'Mozilla/5.0'}
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0'
-        }
         res = requests.get(url, headers=headers, timeout=10)
         res.raise_for_status()
         soup = BeautifulSoup(res.text, 'html.parser')
-        cards = soup.select('.news-card')
-
+        articles = soup.select('.collection__elements .article__content')
         news_list = []
-        for card in cards:
-            title_tag = card.select_one('.news-card__title a')
-            symbol_tag = card.select_one('.news-card__symbols span')
-            if not title_tag:
-                continue
-            title = title_tag.get_text(strip=True)
-            link = title_tag.get('href')
-            if not link.startswith('http'):
-                link = 'https://www.stocktitan.net' + link
-            symbol = symbol_tag.get_text(strip=True) if symbol_tag else extract_symbol(title)
 
-            kst_dt = datetime.now(KST)
+        for article in articles:
+            a_tag = article.select_one('a')
+            if not a_tag:
+                continue
+            title = a_tag.get_text(strip=True)
+            link = a_tag['href']
+            if not title or not link.startswith('http'):
+                continue
+
+            if not is_positive_news({'title': title, 'content': ''}):
+                continue
+
             try:
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
 
+            kst_dt = datetime.now(KST)
             news_list.append({
                 'title': translated,
                 'link': link,
-                'symbol': symbol,
+                'symbol': extract_symbol(title),
                 'time': kst_dt.strftime('%H:%M'),
                 'date': kst_dt.strftime('%Y-%m-%d'),
                 'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
-                'source': 'StockTitan'
+                'source': 'MarketWatch'
             })
 
-        print(f"[StockTitan] 뉴스 {len(news_list)}건 수집 완료")
+        print(f"[MarketWatch] 뉴스 {len(news_list)}건 수집 완료")
         return news_list
     except Exception as e:
-        print(f"[StockTitan] 크롤링 실패: {e}")
+        print(f"[MarketWatch] 크롤링 실패: {e}")
         return []
 
 def update_news():
@@ -181,8 +180,8 @@ def update_news():
                 all_keys.add(uniq)
         api_key_index = (api_key_index + 1) % len(NEWS_API_KEYS)
 
-    titan_news = crawl_stocktitan()
-    for item in titan_news:
+    marketwatch_news = crawl_marketwatch()
+    for item in marketwatch_news:
         date = item['date']
         uniq = item['title'] + item['link']
         if uniq not in all_keys:
