@@ -249,7 +249,6 @@ def get_data():
     except:
         rising, signal = [], []
 
-    # 종목별 뉴스 요약 붙이기
     def attach_news(slist):
         for item in slist:
             symbol = item['symbol']
