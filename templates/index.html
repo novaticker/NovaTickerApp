@@ -260,7 +260,7 @@
                   ${symbol ? `<div class="news-meta">${symbol}</div>` : ''}
                   <a class="news-title" href="${n.link}" target="_blank">${n.title}</a>
                   ${meta ? `<div class="news-meta">${meta}</div>` : ''}
-                  <div class="news-summary">📌 ${n.summary}</div>
+                  ${n.summary ? `<div class="news-summary">📌 ${n.summary}</div>` : ''}
                 </div>
               `;
             }).join('');
