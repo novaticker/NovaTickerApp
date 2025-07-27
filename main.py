@@ -1,9 +1,13 @@
+# main.py - 사용자 요청 처리 (Flask API)
+
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
-import json
 from datetime import datetime
+import json
 import os
 import pytz
+
+from background_news_updater import update_news, get_today_top_gainers
 
 app = Flask(__name__, template_folder='templates')
 CORS(app)
@@ -17,7 +21,6 @@ def index():
 
 @app.route('/update_news')
 def trigger_update_news():
-    from background_news_updater import update_news
     try:
         update_news()
         return jsonify({'status': 'ok'})
@@ -32,7 +35,32 @@ def get_data():
     except:
         raw_news = {}
 
-    rising, signal = [], []
+    try:
+        rising, signal = get_today_top_gainers()
+    except:
+        rising, signal = [], []
+
+    def attach_news(slist):
+        for item in slist:
+            symbol = item['symbol']
+            for date in raw_news:
+                for n in raw_news[date]:
+                    if n.get("symbol", "") == symbol:
+                        item['news'] = {
+                            "title": n['title'],
+                            "summary": n['summary'],
+                            "symbol": symbol,
+                            "time": n.get('time', ''),
+                            "source": n.get('source', '')
+                        }
+                        break
+                if 'news' in item:
+                    break
+        return slist
+
+    rising = attach_news(rising)
+    signal = attach_news(signal)
+
     updated_time = datetime.utcnow().isoformat()
     return jsonify({
         'rising': rising,
