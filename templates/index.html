@@ -204,9 +204,8 @@
       try {
         const res = await fetch('/data.json');
         const data = await res.json();
-        const updatedUTC = new Date(data.updated);
-        const updatedKST = new Date(updatedUTC.getTime() + 9 * 60 * 60 * 1000);
-        const timeStr = updatedKST.toLocaleTimeString('ko-KR', { hour12: false });
+
+        const updatedStr = data.updated?.split(' ')[1]?.slice(0,5) || '??:??';
 
         const renderSymbol = i => {
           let html = `<div>${i.label}`;
@@ -224,10 +223,10 @@
           return html;
         };
 
-        document.getElementById('rising-list').innerHTML = `<p>⏰ 마지막 갱신: ${timeStr}</p>` +
+        document.getElementById('rising-list').innerHTML = `<p>⏰ 마지막 갱신: ${updatedStr}</p>` +
           (data.rising?.length ? data.rising.map(renderSymbol).join('<hr>') : '📢 급등 종목 없음');
 
-        document.getElementById('signal-list').innerHTML = `<p>⏰ 마지막 갱신: ${timeStr}</p>` +
+        document.getElementById('signal-list').innerHTML = `<p>⏰ 마지막 갱신: ${updatedStr}</p>` +
           (data.signal?.length ? data.signal.map(renderSymbol).join('<hr>') : '📢 조짐 종목 없음');
 
         const newsData = data.positive_news || {};
