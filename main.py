@@ -1,12 +1,11 @@
-# main.py - 사용자 요청 처리 (Flask API)
+# main.py
 
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
-from datetime import datetime
 import json
 import os
+from datetime import datetime
 import pytz
-
 from background_news_updater import update_news, get_today_top_gainers
 
 app = Flask(__name__, template_folder='templates')
@@ -48,10 +47,7 @@ def get_data():
                     if n.get("symbol", "") == symbol:
                         item['news'] = {
                             "title": n['title'],
-                            "summary": n['summary'],
-                            "symbol": symbol,
-                            "time": n.get('time', ''),
-                            "source": n.get('source', '')
+                            "summary": n['summary']
                         }
                         break
                 if 'news' in item:
