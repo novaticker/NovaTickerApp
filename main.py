@@ -26,23 +26,27 @@ def trigger_update_news():
 
 @app.route('/data.json')
 def get_data():
+    raw_news = {}
     try:
-        with open(NEWS_FILE, 'r', encoding='utf-8') as f:
-            raw_news = json.load(f)
+        if os.path.exists(NEWS_FILE):
+            with open(NEWS_FILE, 'r', encoding='utf-8') as f:
+                raw_news = json.load(f)
     except:
         raw_news = {}
 
     try:
         rising, signal = get_today_top_gainers()
-    except:
+    except Exception as e:
         rising, signal = [], []
 
     def attach_news(slist):
         for item in slist:
-            symbol = item['symbol']
+            symbol = item.get('symbol')
+            if not symbol:
+                continue
             for date in raw_news:
                 for n in raw_news[date]:
-                    if n.get("symbol", "") == symbol:
+                    if n.get("symbol") == symbol:
                         item['news'] = {
                             "title": n.get('title', ''),
                             "summary": n.get('summary', ''),
@@ -59,7 +63,6 @@ def get_data():
     rising = attach_news(rising)
     signal = attach_news(signal)
 
-    # ✅ updated 시간을 KST 기준으로 표시
     now_kst = datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')
 
     return jsonify({
@@ -86,4 +89,4 @@ def delete_news():
     return jsonify({'error': 'not found'}), 404
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host='0.0.0.0', port=8080)
