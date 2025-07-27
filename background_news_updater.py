@@ -16,6 +16,16 @@ NEWS_FILE = 'positive_news.json'
 KST = pytz.timezone('Asia/Seoul')
 translator = Translator()
 
+# 고급 요약 함수 (투자 포인트 위주 요약)
+def summarize(text):
+    text = text.lower()
+    if any(k in text for k in ['fda', 'approval', 'phase', 'merger', 'acquisition']):
+        return '호재: 임상/승인/합병 관련 발표'
+    elif any(k in text for k in ['record', 'launch', 'expansion', 'invest', 'earnings']):
+        return '호재: 실적/런칭/투자 발표'
+    else:
+        return text[:100] + '...' if len(text) > 100 else text
+
 def extract_symbol(text):
     match = re.search(r'\b(NASDAQ|NYSE|AMEX)[:\s-]*([A-Z]{1,6})\b', text)
     if match:
@@ -24,9 +34,6 @@ def extract_symbol(text):
     if match2:
         return match2.group(1).upper()
     return 'N/A'
-
-def summarize(text):
-    return text[:100] + "..." if len(text) > 100 else text
 
 def fetch_news(query, api_key):
     url = f'https://newsdata.io/api/1/news?apikey={api_key}&q={query}&country=us&language=en&category=business'
@@ -225,3 +232,4 @@ def get_today_top_gainers():
         return gainers, signals
     except:
         return [], []
+
