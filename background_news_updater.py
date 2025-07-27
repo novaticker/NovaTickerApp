@@ -32,6 +32,15 @@ def extract_symbol(text):
         return match2.group(1).upper()
     return 'N/A'
 
+def parse_prnewswire_time(raw_text):
+    try:
+        dt = datetime.strptime(raw_text, "%b %d, %Y, %H:%M ET")
+        dt_et = pytz.timezone("US/Eastern").localize(dt)
+        dt_kst = dt_et.astimezone(KST)
+        return dt_kst
+    except:
+        return datetime.now(KST)
+
 def fetch_news(query, api_key):
     url = f'https://newsdata.io/api/1/news?apikey={api_key}&q={query}&country=us&language=en&category=business'
     try:
@@ -130,13 +139,13 @@ def crawl_prnewswire():
 
         for item in items:
             a_tag = item.find('a')
-            if not a_tag:
+            time_tag = item.select_one('span.timestamp')
+            if not a_tag or not time_tag:
                 continue
             title = a_tag.get_text(strip=True)
             link = 'https://www.prnewswire.com' + a_tag['href']
-            if len(title) < 6:
-                continue
-            kst_dt = datetime.now(KST)
+            raw_time = time_tag.text.strip()
+            dt_kst = parse_prnewswire_time(raw_time)
 
             try:
                 translated = translator.translate(title, dest='ko').text
@@ -151,9 +160,9 @@ def crawl_prnewswire():
                 'summary': summary,
                 'link': link,
                 'symbol': symbol,
-                'time': kst_dt.strftime('%H:%M'),
-                'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
-                'date': kst_dt.strftime('%Y-%m-%d'),
+                'time': dt_kst.strftime('%H:%M'),
+                'timestamp': dt_kst.strftime('%Y-%m-%d %H:%M:%S'),
+                'date': dt_kst.strftime('%Y-%m-%d'),
                 'source': 'PRNewswire'
             })
         return news_list
