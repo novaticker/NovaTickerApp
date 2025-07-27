@@ -1,4 +1,4 @@
-# background_news_updater.py - 뉴스 수집 및 분석 전담
+# background_news_updater.py
 
 import requests, json, os, re
 from bs4 import BeautifulSoup
