@@ -2,8 +2,8 @@ import requests, json, os, re
 from bs4 import BeautifulSoup
 from datetime import datetime
 import pytz
-import yfinance as yf
 from googletrans import Translator
+import yfinance as yf
 
 NEWS_API_KEYS = [
     'pub_af7cbc0a338a4f64aeba8b044a544dca',
@@ -14,7 +14,6 @@ NEWS_FILE = 'positive_news.json'
 KST = pytz.timezone('Asia/Seoul')
 translator = Translator()
 
-# 고급 요약 함수
 def summarize(text):
     text = text.lower()
     if any(k in text for k in ['fda', 'approval', 'phase', 'merger', 'acquisition']):
@@ -24,7 +23,6 @@ def summarize(text):
     else:
         return text[:100] + '...' if len(text) > 100 else text
 
-# 종목 추출
 def extract_symbol(text):
     match = re.search(r'\b(NASDAQ|NYSE|AMEX)[:\s-]*([A-Z]{1,6})\b', text)
     if match:
@@ -34,7 +32,6 @@ def extract_symbol(text):
         return match2.group(1).upper()
     return 'N/A'
 
-# NewsData API
 def fetch_news(query, api_key):
     url = f'https://newsdata.io/api/1/news?apikey={api_key}&q={query}&country=us&language=en&category=business'
     try:
@@ -79,7 +76,6 @@ def fetch_news(query, api_key):
 
     return results
 
-# Yahoo Finance 크롤링
 def crawl_yahoo():
     try:
         url = 'https://finance.yahoo.com/topic/stock-market-news'
@@ -123,7 +119,6 @@ def crawl_yahoo():
     except:
         return []
 
-# PRNewswire 크롤링
 def crawl_prnewswire():
     try:
         url = 'https://www.prnewswire.com/news-releases/news-releases-list/'
@@ -165,7 +160,6 @@ def crawl_prnewswire():
     except:
         return []
 
-# 전체 뉴스 수집 및 저장
 def update_news():
     if os.path.exists(NEWS_FILE):
         with open(NEWS_FILE, 'r', encoding='utf-8') as f:
@@ -201,7 +195,6 @@ def update_news():
     with open(NEWS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# 급등 종목 감지 (유지)
 def get_today_top_gainers():
     try:
         url = 'https://finance.yahoo.com/gainers'
