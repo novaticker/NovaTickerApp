@@ -1,5 +1,3 @@
-# main.py
-
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 import json
@@ -46,8 +44,11 @@ def get_data():
                 for n in raw_news[date]:
                     if n.get("symbol", "") == symbol:
                         item['news'] = {
-                            "title": n['title'],
-                            "summary": n['summary']
+                            "title": n.get('title', ''),
+                            "summary": n.get('summary', ''),
+                            "symbol": n.get('symbol', ''),
+                            "time": n.get('time', ''),
+                            "source": n.get('source', '')
                         }
                         break
                 if 'news' in item:
