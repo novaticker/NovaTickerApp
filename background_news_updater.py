@@ -1,21 +1,20 @@
-import requests
-import json
-import os
-import re
-import pytz
-from datetime import datetime
-from bs4 import BeautifulSoup
-from googletrans import Translator
+# background_news_updater.py - 뉴스 수집 및 분석 전담
 
-NEWS_FILE = 'positive_news.json'
-KST = pytz.timezone('Asia/Seoul')
-translator = Translator()
+import requests, json, os, re
+from bs4 import BeautifulSoup
+from datetime import datetime
+import pytz
+import yfinance as yf
+from googletrans import Translator
 
 NEWS_API_KEYS = [
     'pub_af7cbc0a338a4f64aeba8b044a544dca',
     'pub_dc30774b54994201bbe1e8ca725ba61f',
     'pub_cfed46877d8d41668ad220429f779cc3'
 ]
+NEWS_FILE = 'positive_news.json'
+KST = pytz.timezone('Asia/Seoul')
+translator = Translator()
 
 def extract_symbol(text):
     match = re.search(r'\b(NASDAQ|NYSE|AMEX)[:\s-]*([A-Z]{1,6})\b', text)
@@ -43,7 +42,6 @@ def fetch_news(query, api_key):
 
     for a in articles:
         title = a.get('title', '')
-        content = a.get('content', '') or ''
         link = a.get('link', '')
         pub_utc = a.get('pubDate')
         if not title or not link or not pub_utc:
@@ -56,12 +54,11 @@ def fetch_news(query, api_key):
             kst_dt = datetime.now(KST)
 
         try:
-            full_text = f"{title}. {content}"
-            translated = translator.translate(full_text, dest='ko').text
+            translated = translator.translate(title, dest='ko').text
         except:
             translated = title
 
-        summary = summarize(translated.strip().replace('\n', ' '))
+        summary = summarize(translated)
         matched_symbol = extract_symbol(title)
 
         results.append({
@@ -72,7 +69,7 @@ def fetch_news(query, api_key):
             'time': kst_dt.strftime('%H:%M'),
             'date': kst_dt.strftime('%Y-%m-%d'),
             'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
-            'source': a.get('source_id', 'NewsData') or 'NewsData'
+            'source': 'NewsData'
         })
 
     return results
@@ -191,3 +188,40 @@ def update_news():
 
     with open(NEWS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+def get_today_top_gainers():
+    try:
+        url = 'https://finance.yahoo.com/gainers'
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        rows = soup.select('table tbody tr')
+        gainers, signals = [], []
+
+        for row in rows:
+            cols = row.find_all('td')
+            if len(cols) < 6:
+                continue
+            symbol = cols[0].text.strip()
+            change_percent = cols[4].text.strip().replace('%', '').replace('+', '')
+            try:
+                percent = float(change_percent)
+                label = f"{symbol} (+{percent:.1f}%)"
+                item = {
+                    'symbol': symbol,
+                    'change': percent,
+                    'label': label
+                }
+                if percent >= 5:
+                    gainers.append(item)
+                df = yf.download(symbol, period="5d", interval="1m")
+                if len(df) >= 4:
+                    vol_now = df['Volume'].iloc[-1]
+                    vol_prev = df['Volume'].iloc[-4:-1].mean()
+                    if vol_now > vol_prev * 2:
+                        signals.append(item)
+            except:
+                continue
+        return gainers, signals
+    except:
+        return [], []
