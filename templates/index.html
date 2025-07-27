@@ -94,12 +94,6 @@
       gap: 8px;
       flex-wrap: wrap;
     }
-    .news-summary {
-      font-size: 0.95em;
-      margin-top: 6px;
-      color: #c9d1d9;
-      line-height: 1.4;
-    }
     .delete-btn {
       position: absolute;
       top: 12px;
@@ -144,6 +138,12 @@
       .news-meta {
         justify-content: flex-start;
       }
+    }
+    .news-summary {
+      font-size: 0.95em;
+      margin-top: 6px;
+      color: #c9d1d9;
+      line-height: 1.4;
     }
   </style>
 </head>
@@ -211,7 +211,14 @@
         const renderSymbol = i => {
           let html = `<div>${i.label}`;
           if (i.news) {
-            html += ` ⭐<div class="news-summary">📰 ${i.news.title}</div>`;
+            html += `
+              ⭐<div class="news-summary">
+                <strong>📰 ${i.news.summary}</strong>
+                <div style="font-size: 0.85em; color: #8b949e; margin-top: 4px;">
+                  🧾 ${i.news.symbol || 'N/A'} ｜ 🕒 ${i.news.time} KST ｜ 📰 ${i.news.source}
+                </div>
+              </div>
+            `;
           }
           html += `</div>`;
           return html;
@@ -236,14 +243,13 @@
               const symbol = (n.symbol && n.symbol !== 'N/A') ? `🧾 ${n.symbol}` : '';
               const time = n.time ? `🕒 ${n.time} KST` : '';
               const source = n.source ? `📰 ${n.source}` : '';
-              const summary = n.summary ? `<div class="news-summary">📝 ${n.summary}</div>` : '';
               const meta = [symbol, time, source].filter(Boolean).join(' ｜ ');
               return `
                 <div class="news-item">
                   <button class="delete-btn" onclick="confirmDelete('${date}', \`${safeTitle}\`)">🗑️</button>
                   <a class="news-title" href="${n.link}" target="_blank">${n.title}</a>
                   ${meta ? `<div class="news-meta">${meta}</div>` : ''}
-                  ${summary}
+                  <div class="news-summary">📌 ${n.summary}</div>
                 </div>
               `;
             }).join('');
