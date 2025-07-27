@@ -36,6 +36,12 @@ def extract_symbol(text):
         return match2.group(1).upper()
     return 'N/A'
 
+def summarize_text(text):
+    summary = text.strip()
+    summary = re.sub(r'http\S+', '', summary)  # remove URLs
+    summary = summary.split('. ')[0] + '.' if '.' in summary else summary
+    return summary[:120].strip() + ('...' if len(summary) > 120 else '')
+
 def fetch_news(query, api_key):
     url = f'https://newsdata.io/api/1/news?apikey={api_key}&q={query}&country=us&language=en&category=business'
     try:
@@ -67,9 +73,11 @@ def fetch_news(query, api_key):
             translated = title
 
         matched_symbol = extract_symbol(title)
+        summary = summarize_text(translated)
 
         results.append({
             'title': translated,
+            'summary': summary,
             'link': link.strip(),
             'symbol': matched_symbol,
             'time': kst_dt.strftime('%H:%M'),
@@ -104,9 +112,11 @@ def crawl_yahoo():
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
+            summary = summarize_text(translated)
             symbol = extract_symbol(title)
             news_list.append({
                 'title': translated,
+                'summary': summary,
                 'link': link,
                 'symbol': symbol,
                 'time': kst_dt.strftime('%H:%M'),
@@ -140,9 +150,11 @@ def crawl_prnewswire():
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
+            summary = summarize_text(translated)
             symbol = extract_symbol(title)
             news_list.append({
                 'title': translated,
+                'summary': summary,
                 'link': link,
                 'symbol': symbol,
                 'time': kst_dt.strftime('%H:%M'),
@@ -255,7 +267,7 @@ def get_data():
             for date in raw_news:
                 for n in raw_news[date]:
                     if n.get("symbol", "") == symbol:
-                        item['news'] = {"title": n['title']}
+                        item['news'] = {"title": n['summary']}
                         break
                 if 'news' in item:
                     break
