@@ -1,5 +1,3 @@
-# background_news_updater.py
-
 import requests, json, os, re
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -16,7 +14,7 @@ NEWS_FILE = 'positive_news.json'
 KST = pytz.timezone('Asia/Seoul')
 translator = Translator()
 
-# 고급 요약 함수 (투자 포인트 위주 요약)
+# 요약 함수
 def summarize(text):
     text = text.lower()
     if any(k in text for k in ['fda', 'approval', 'phase', 'merger', 'acquisition']):
@@ -26,6 +24,7 @@ def summarize(text):
     else:
         return text[:100] + '...' if len(text) > 100 else text
 
+# 종목 추출
 def extract_symbol(text):
     match = re.search(r'\b(NASDAQ|NYSE|AMEX)[:\s-]*([A-Z]{1,6})\b', text)
     if match:
@@ -35,6 +34,7 @@ def extract_symbol(text):
         return match2.group(1).upper()
     return 'N/A'
 
+# NewsData API
 def fetch_news(query, api_key):
     url = f'https://newsdata.io/api/1/news?apikey={api_key}&q={query}&country=us&language=en&category=business'
     try:
@@ -51,11 +51,11 @@ def fetch_news(query, api_key):
         title = a.get('title', '')
         link = a.get('link', '')
         pub_utc = a.get('pubDate')
-        if not title or not link or not pub_utc:
+        if not title or not link:
             continue
 
         try:
-            utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S")
+            utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S") if pub_utc else datetime.utcnow()
             kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(KST)
         except:
             kst_dt = datetime.now(KST)
@@ -81,6 +81,7 @@ def fetch_news(query, api_key):
 
     return results
 
+# Yahoo Finance
 def crawl_yahoo():
     try:
         url = 'https://finance.yahoo.com/topic/stock-market-news'
@@ -121,6 +122,7 @@ def crawl_yahoo():
     except:
         return []
 
+# PRNewswire
 def crawl_prnewswire():
     try:
         url = 'https://www.prnewswire.com/news-releases/news-releases-list/'
@@ -159,6 +161,7 @@ def crawl_prnewswire():
     except:
         return []
 
+# 뉴스 업데이트
 def update_news():
     if os.path.exists(NEWS_FILE):
         with open(NEWS_FILE, 'r', encoding='utf-8') as f:
@@ -175,19 +178,17 @@ def update_news():
     for query in ['nasdaq', 'ipo', 'fda', 'merger', 'pharma']:
         news = fetch_news(query, NEWS_API_KEYS[api_index])
         for item in news:
-            date = item['date']
             key = item['title'] + item['link']
             if key not in all_keys:
-                data.setdefault(date, []).append(item)
+                data.setdefault(item['date'], []).append(item)
                 all_keys.add(key)
         api_index = (api_index + 1) % len(NEWS_API_KEYS)
 
     for fn in [crawl_yahoo, crawl_prnewswire]:
         for item in fn():
-            date = item['date']
             key = item['title'] + item['link']
             if key not in all_keys:
-                data.setdefault(date, []).append(item)
+                data.setdefault(item['date'], []).append(item)
                 all_keys.add(key)
 
     for date in data:
@@ -196,6 +197,7 @@ def update_news():
     with open(NEWS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+# 급등 감지
 def get_today_top_gainers():
     try:
         url = 'https://finance.yahoo.com/gainers'
@@ -221,6 +223,7 @@ def get_today_top_gainers():
                 }
                 if percent >= 5:
                     gainers.append(item)
+
                 df = yf.download(symbol, period="5d", interval="1m")
                 if len(df) >= 4:
                     vol_now = df['Volume'].iloc[-1]
