@@ -232,4 +232,3 @@ def get_today_top_gainers():
         return gainers, signals
     except:
         return [], []
-
