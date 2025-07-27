@@ -94,6 +94,12 @@
       gap: 8px;
       flex-wrap: wrap;
     }
+    .news-summary {
+      font-size: 0.95em;
+      margin-top: 6px;
+      color: #c9d1d9;
+      line-height: 1.4;
+    }
     .delete-btn {
       position: absolute;
       top: 12px;
@@ -138,12 +144,6 @@
       .news-meta {
         justify-content: flex-start;
       }
-    }
-    .news-summary {
-      font-size: 0.95em;
-      margin-top: 6px;
-      color: #c9d1d9;
-      line-height: 1.4;
     }
   </style>
 </head>
@@ -236,12 +236,14 @@
               const symbol = (n.symbol && n.symbol !== 'N/A') ? `🧾 ${n.symbol}` : '';
               const time = n.time ? `🕒 ${n.time} KST` : '';
               const source = n.source ? `📰 ${n.source}` : '';
+              const summary = n.summary ? `<div class="news-summary">📝 ${n.summary}</div>` : '';
               const meta = [symbol, time, source].filter(Boolean).join(' ｜ ');
               return `
                 <div class="news-item">
                   <button class="delete-btn" onclick="confirmDelete('${date}', \`${safeTitle}\`)">🗑️</button>
                   <a class="news-title" href="${n.link}" target="_blank">${n.title}</a>
                   ${meta ? `<div class="news-meta">${meta}</div>` : ''}
+                  ${summary}
                 </div>
               `;
             }).join('');
