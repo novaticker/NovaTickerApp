@@ -14,12 +14,12 @@ NEWS_FILE = 'positive_news.json'
 KST = pytz.timezone('Asia/Seoul')
 translator = Translator()
 
-# 요약 함수
+# 고급 요약 함수
 def summarize(text):
     text = text.lower()
     if any(k in text for k in ['fda', 'approval', 'phase', 'merger', 'acquisition']):
         return '호재: 임상/승인/합병 관련 발표'
-    elif any(k in text for k in ['record', 'launch', 'expansion', 'invest', 'earnings']):
+    elif any(k in text for k in ['record', 'launch', 'expansion', 'invest', 'earning']):
         return '호재: 실적/런칭/투자 발표'
     else:
         return text[:100] + '...' if len(text) > 100 else text
@@ -44,10 +44,8 @@ def fetch_news(query, api_key):
     except:
         return []
 
-    articles = data.get('results', [])
     results = []
-
-    for a in articles:
+    for a in data.get('results', []):
         title = a.get('title', '')
         link = a.get('link', '')
         pub_utc = a.get('pubDate')
@@ -55,7 +53,7 @@ def fetch_news(query, api_key):
             continue
 
         try:
-            utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S") if pub_utc else datetime.utcnow()
+            utc_dt = datetime.strptime(pub_utc, "%Y-%m-%d %H:%M:%S")
             kst_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(KST)
         except:
             kst_dt = datetime.now(KST)
@@ -66,22 +64,22 @@ def fetch_news(query, api_key):
             translated = title
 
         summary = summarize(translated)
-        matched_symbol = extract_symbol(title)
+        symbol = extract_symbol(title)
 
         results.append({
             'title': translated,
             'summary': summary,
             'link': link.strip(),
-            'symbol': matched_symbol,
+            'symbol': symbol,
             'time': kst_dt.strftime('%H:%M'),
-            'date': kst_dt.strftime('%Y-%m-%d'),
             'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
+            'date': kst_dt.strftime('%Y-%m-%d'),
             'source': 'NewsData'
         })
 
     return results
 
-# Yahoo Finance
+# Yahoo Finance 크롤링
 def crawl_yahoo():
     try:
         url = 'https://finance.yahoo.com/topic/stock-market-news'
@@ -102,27 +100,30 @@ def crawl_yahoo():
             if not link.startswith('http'):
                 link = 'https://finance.yahoo.com' + link
             kst_dt = datetime.now(KST)
+
             try:
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
+
             summary = summarize(translated)
             symbol = extract_symbol(title)
+
             news_list.append({
                 'title': translated,
                 'summary': summary,
                 'link': link,
                 'symbol': symbol,
                 'time': kst_dt.strftime('%H:%M'),
-                'date': kst_dt.strftime('%Y-%m-%d'),
                 'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                'date': kst_dt.strftime('%Y-%m-%d'),
                 'source': 'Yahoo Finance'
             })
         return news_list
     except:
         return []
 
-# PRNewswire
+# PRNewswire 크롤링
 def crawl_prnewswire():
     try:
         url = 'https://www.prnewswire.com/news-releases/news-releases-list/'
@@ -141,27 +142,30 @@ def crawl_prnewswire():
             if len(title) < 6:
                 continue
             kst_dt = datetime.now(KST)
+
             try:
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
+
             summary = summarize(translated)
             symbol = extract_symbol(title)
+
             news_list.append({
                 'title': translated,
                 'summary': summary,
                 'link': link,
                 'symbol': symbol,
                 'time': kst_dt.strftime('%H:%M'),
-                'date': kst_dt.strftime('%Y-%m-%d'),
                 'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                'date': kst_dt.strftime('%Y-%m-%d'),
                 'source': 'PRNewswire'
             })
         return news_list
     except:
         return []
 
-# 뉴스 업데이트
+# 전체 뉴스 수집 및 저장
 def update_news():
     if os.path.exists(NEWS_FILE):
         with open(NEWS_FILE, 'r', encoding='utf-8') as f:
@@ -197,7 +201,7 @@ def update_news():
     with open(NEWS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# 급등 감지
+# 급등 종목 감지 (유지)
 def get_today_top_gainers():
     try:
         url = 'https://finance.yahoo.com/gainers'
