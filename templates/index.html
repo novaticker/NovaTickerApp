@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="ko">
+<!DOCTYPE html><html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -148,38 +147,28 @@
   </style>
 </head>
 <body>
-  <h1>📊 NovaTicker 리치</h1>
-
-  <button class="refresh-button" onclick="refreshNews()">🔄 뉴스 수동 새로고침</button>
+  <h1>📊 NovaTicker 리치</h1><button class="refresh-button" onclick="refreshNews()">🔄 뉴스 수동 새로고침</button>
 
   <div class="tabs">
-    <button class="tab-button active" onclick="showTab('rising')">📈 급등 종목</button>
-    <button class="tab-button" onclick="showTab('signal')">⚠️ 급등 조짐</button>
-    <button class="tab-button" onclick="showTab('news')">📰 호재 뉴스</button>
-  </div>
-
-  <div id="rising" class="content active">
+    <button class="tab-button active" onclick="showTab('rising')">📈 급득 종목</button>
+    <button class="tab-button" onclick="showTab('signal')">⚠️ 급득 조지림</button>
+    <button class="tab-button" onclick="showTab('news')">📰 호제 뉴스</button>
+  </div>  <div id="rising" class="content active">
     <div id="rising-list">⏰ 마지막 갱신: 불러오는 중...</div>
-  </div>
-
-  <div id="signal" class="content">
+  </div>  <div id="signal" class="content">
     <div id="signal-list">⏰ 마지막 갱신: 불러오는 중...</div>
-  </div>
-
-  <div id="news" class="content">
+  </div>  <div id="news" class="content">
     <div class="filter-buttons">
       <button class="filter-button" onclick="filterNews(event, 'fda')">🧪 FDA 승인 / 임상</button>
       <button class="filter-button" onclick="filterNews(event, '바이오')">💊 바이오텍 / 제약</button>
-      <button class="filter-button" onclick="filterNews(event, 'ipo')">🆕 신규 상장 (IPO)</button>
-      <button class="filter-button" onclick="filterNews(event, 'merger')">🤝 인수합병 / 파트너십</button>
+      <button class="filter-button" onclick="filterNews(event, 'ipo')">🆕 승귀 상장 (IPO)</button>
+      <button class="filter-button" onclick="filterNews(event, 'merger')">🤝 인수합병 / 파트너시프</button>
       <button class="filter-button" onclick="filterNews(event, '투자')">💰 투자 유치 / 기관 매수</button>
-      <button class="filter-button" onclick="filterNews(event, '급등')">💥 급등 뉴스 / 폭등</button>
+      <button class="filter-button" onclick="filterNews(event, '급득')">💥 급득 뉴스 / 폭득</button>
       <button class="filter-button" onclick="resetFilter()">❌ 초기화</button>
     </div>
     <div id="news-list">⏰ 뉴스 로딩 중...</div>
-  </div>
-
-  <script>
+  </div>  <script>
     function showTab(tabId) {
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.content').forEach(div => div.classList.remove('active'));
@@ -204,7 +193,6 @@
       try {
         const res = await fetch('/data.json');
         const data = await res.json();
-
         const updatedStr = data.updated?.split(' ')[1]?.slice(0,5) || '??:??';
 
         const renderSymbol = i => {
@@ -242,10 +230,11 @@
               const symbol = (n.symbol && n.symbol !== 'N/A') ? `🧾 ${n.symbol}` : '';
               const time = n.time ? `🕒 ${n.time} KST` : '';
               const source = n.source ? `📰 ${n.source}` : '';
-              const meta = [symbol, time, source].filter(Boolean).join(' ｜ ');
+              const meta = [time, source].filter(Boolean).join(' ｜ ');
               return `
                 <div class="news-item">
                   <button class="delete-btn" onclick="confirmDelete('${date}', \`${safeTitle}\`)">🗑️</button>
+                  ${symbol ? `<div class="news-meta">${symbol}</div>` : ''}
                   <a class="news-title" href="${n.link}" target="_blank">${n.title}</a>
                   ${meta ? `<div class="news-meta">${meta}</div>` : ''}
                   <div class="news-summary">📌 ${n.summary}</div>
@@ -293,6 +282,5 @@
     }
 
     loadData();
-  </script>
-</body>
+  </script></body>
 </html>
