@@ -53,6 +53,7 @@ def fetch_news(query, api_key):
 
     for a in articles:
         title = a.get('title', '')
+        content = a.get('content', '') or ''
         link = a.get('link', '')
         pub_utc = a.get('pubDate')
         if not title or not link or not pub_utc:
@@ -65,11 +66,12 @@ def fetch_news(query, api_key):
             kst_dt = datetime.now(KST)
 
         try:
-            translated = translator.translate(title, dest='ko').text
+            full_text = f"{title}. {content}"
+            translated = translator.translate(full_text, dest='ko').text
         except:
             translated = title
 
-        summary = summarize(translated)
+        summary = summarize(translated.strip().replace('\n', ' '))
         matched_symbol = extract_symbol(title)
 
         results.append({
@@ -80,7 +82,7 @@ def fetch_news(query, api_key):
             'time': kst_dt.strftime('%H:%M'),
             'date': kst_dt.strftime('%Y-%m-%d'),
             'timestamp': kst_dt.strftime('%Y-%m-%d %H:%M:%S'),
-            'source': 'NewsData'
+            'source': a.get('source_id', 'NewsData') or 'NewsData'
         })
 
     return results
