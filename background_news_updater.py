@@ -29,12 +29,15 @@ def summarize(text):
     return '일반 뉴스 요약'
 
 def extract_symbol(text):
-    match = re.search(r'\b(NASDAQ|NYSE|AMEX)[:\s-]*([A-Z]{1,6})\b', text)
+    match = re.search(r'\b(NASDAQ|NYSE|AMEX)[:\s\-]*([A-Z]{1,6})\b', text)
     if match:
         return match.group(2).upper()
-    match2 = re.search(r'\b([A-Z]{2,6})[:：\-]\s', text)
+    match2 = re.search(r'\b([A-Z]{2,6})[:：\-]\s?', text)
     if match2:
         return match2.group(1).upper()
+    match3 = re.findall(r'\(([A-Z]{2,6})\)', text)
+    if match3:
+        return match3[0].upper()
     return 'N/A'
 
 def parse_prnewswire_time(raw_text):
@@ -56,10 +59,10 @@ def fetch_news(query, api_key):
 
     results = []
     for a in data.get('results', []):
-        title = a.get('title', '')
+        title_en = a.get('title', '')
         link = a.get('link', '')
         pub_utc = a.get('pubDate')
-        if not title or not link:
+        if not title_en or not link:
             continue
 
         try:
@@ -69,12 +72,12 @@ def fetch_news(query, api_key):
             kst_dt = datetime.now(KST)
 
         try:
-            translated = translator.translate(title, dest='ko').text
+            translated = translator.translate(title_en, dest='ko').text
         except:
-            translated = title
+            translated = title_en
 
-        summary = summarize(translated)
-        symbol = extract_symbol(title)
+        summary = summarize(title_en)
+        symbol = extract_symbol(title_en)
 
         results.append({
             'title': translated,
@@ -102,8 +105,8 @@ def crawl_yahoo():
             a_tag = item.find('a')
             if not a_tag or not a_tag.get('href'):
                 continue
-            title = a_tag.get_text(strip=True)
-            if len(title) < 6:
+            title_en = a_tag.get_text(strip=True)
+            if len(title_en) < 6:
                 continue
             link = a_tag['href']
             if not link.startswith('http'):
@@ -111,12 +114,12 @@ def crawl_yahoo():
             kst_dt = datetime.now(KST)
 
             try:
-                translated = translator.translate(title, dest='ko').text
+                translated = translator.translate(title_en, dest='ko').text
             except:
-                translated = title
+                translated = title_en
 
-            summary = summarize(translated)
-            symbol = extract_symbol(title)
+            summary = summarize(title_en)
+            symbol = extract_symbol(title_en)
 
             news_list.append({
                 'title': translated,
@@ -146,18 +149,18 @@ def crawl_prnewswire():
             time_tag = item.select_one('span.timestamp')
             if not a_tag or not time_tag:
                 continue
-            title = a_tag.get_text(strip=True)
+            title_en = a_tag.get_text(strip=True)
             link = 'https://www.prnewswire.com' + a_tag['href']
             raw_time = time_tag.text.strip()
             dt_kst = parse_prnewswire_time(raw_time)
 
             try:
-                translated = translator.translate(title, dest='ko').text
+                translated = translator.translate(title_en, dest='ko').text
             except:
-                translated = title
+                translated = title_en
 
-            summary = summarize(translated)
-            symbol = extract_symbol(title)
+            summary = summarize(title_en)
+            symbol = extract_symbol(title_en)
 
             news_list.append({
                 'title': translated,
