@@ -201,7 +201,8 @@
       document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
       e.target.classList.add('active');
       document.querySelectorAll('.news-item').forEach(item => {
-        item.style.display = item.innerText.toLowerCase().includes(keyword.toLowerCase()) ? 'block' : 'none';
+        const itemKeywords = item.getAttribute('data-keywords') || '';
+        item.style.display = itemKeywords.toLowerCase().includes(keyword.toLowerCase()) ? 'block' : 'none';
       });
     }
 
@@ -252,8 +253,9 @@
               const time = n.time ? `🕒 ${n.time} KST` : '';
               const source = n.source ? `📰 ${n.source}` : '';
               const meta = [time, source].filter(Boolean).join(' ｜ ');
+              const keywords = [n.title, n.summary].join(' ').toLowerCase();
               return `
-                <div class="news-item">
+                <div class="news-item" data-keywords="${keywords}">
                   <button class="delete-btn" onclick="confirmDelete('${date}', \`${safeTitle}\`)">🗑️</button>
                   ${symbol ? `<div class="news-meta">${symbol}</div>` : ''}
                   <a class="news-title" href="${n.link}" target="_blank">${n.title}</a>
