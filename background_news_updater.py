@@ -16,18 +16,23 @@ translator = Translator()
 
 def summarize(text):
     text = text.lower()
-    if any(k in text for k in ['fda', 'approval', 'phase', 'merger', 'acquisition']):
-        return '호재: 임상/승인/합병 관련 발표'
-    elif any(k in text for k in ['record', 'launch', 'expansion', 'invest', 'earning']):
-        return '호재: 실적/런칭/투자 발표'
-    else:
-        return text[:100] + '...' if len(text) > 100 else text
+    if any(k in text for k in ['fda', 'approval', 'phase', 'clinical']):
+        return '호재: FDA 승인/임상 관련 발표'
+    if any(k in text for k in ['merger', 'acquisition', 'buyout']):
+        return '호재: 인수합병(M&A) 관련 발표'
+    if any(k in text for k in ['record', 'launch', 'expansion', 'open', 'partnership']):
+        return '호재: 신기록/런칭/확장/파트너십 발표'
+    if any(k in text for k in ['invest', 'funding', 'raise', 'acquired stake']):
+        return '호재: 투자 유치/지분 확보 발표'
+    if any(k in text for k in ['surge', 'rally', 'soar', 'spike']):
+        return '급등 관련 뉴스'
+    return '일반 뉴스 요약'
 
 def extract_symbol(text):
     match = re.search(r'\b(NASDAQ|NYSE|AMEX)[:\s-]*([A-Z]{1,6})\b', text)
     if match:
         return match.group(2).upper()
-    match2 = re.search(r'\b([A-Z]{2,5})[:：]', text)
+    match2 = re.search(r'\b([A-Z]{2,6})[:：\-]\s', text)
     if match2:
         return match2.group(1).upper()
     return 'N/A'
@@ -36,8 +41,7 @@ def parse_prnewswire_time(raw_text):
     try:
         dt = datetime.strptime(raw_text, "%b %d, %Y, %H:%M ET")
         dt_et = pytz.timezone("US/Eastern").localize(dt)
-        dt_kst = dt_et.astimezone(KST)
-        return dt_kst
+        return dt_et.astimezone(KST)
     except:
         return datetime.now(KST)
 
