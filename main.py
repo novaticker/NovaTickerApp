@@ -48,6 +48,7 @@ def get_data():
                             "summary": n.get('summary', ''),
                             "symbol": n.get('symbol', ''),
                             "time": n.get('time', ''),
+                            "timestamp": n.get('timestamp', ''),
                             "source": n.get('source', '')
                         }
                         break
@@ -58,12 +59,14 @@ def get_data():
     rising = attach_news(rising)
     signal = attach_news(signal)
 
-    updated_time = datetime.utcnow().isoformat()
+    # ✅ updated 시간을 KST 기준으로 표시
+    now_kst = datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')
+
     return jsonify({
         'rising': rising,
         'signal': signal,
         'positive_news': raw_news,
-        'updated': updated_time
+        'updated': now_kst
     })
 
 @app.route('/delete_news', methods=['POST'])
