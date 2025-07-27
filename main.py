@@ -28,7 +28,7 @@ def index():
     return render_template('index.html')
 
 def extract_symbol(text):
-    match = re.search(r'(NASDAQ|NYSE|NYSEARCA|AMEX)[:：]?\s*([A-Z]+)', text, re.IGNORECASE)
+    match = re.search(r'\b(NASDAQ|NYSE|AMEX)[:\s-]*([A-Z]{1,6})\b', text)
     if match:
         return match.group(2).upper()
     match2 = re.search(r'\b([A-Z]{2,5})[:：]', text)
@@ -36,11 +36,8 @@ def extract_symbol(text):
         return match2.group(1).upper()
     return 'N/A'
 
-def summarize_text(text):
-    summary = text.strip()
-    summary = re.sub(r'http\S+', '', summary)  # remove URLs
-    summary = summary.split('. ')[0] + '.' if '.' in summary else summary
-    return summary[:120].strip() + ('...' if len(summary) > 120 else '')
+def summarize(text):
+    return text[:100] + "..." if len(text) > 100 else text
 
 def fetch_news(query, api_key):
     url = f'https://newsdata.io/api/1/news?apikey={api_key}&q={query}&country=us&language=en&category=business'
@@ -72,8 +69,8 @@ def fetch_news(query, api_key):
         except:
             translated = title
 
+        summary = summarize(translated)
         matched_symbol = extract_symbol(title)
-        summary = summarize_text(translated)
 
         results.append({
             'title': translated,
@@ -112,7 +109,7 @@ def crawl_yahoo():
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
-            summary = summarize_text(translated)
+            summary = summarize(translated)
             symbol = extract_symbol(title)
             news_list.append({
                 'title': translated,
@@ -150,7 +147,7 @@ def crawl_prnewswire():
                 translated = translator.translate(title, dest='ko').text
             except:
                 translated = title
-            summary = summarize_text(translated)
+            summary = summarize(translated)
             symbol = extract_symbol(title)
             news_list.append({
                 'title': translated,
@@ -178,24 +175,24 @@ def update_news():
         for item in date_items:
             all_keys.add(item['title'] + item['link'])
 
-    api_key_index = 0
+    api_index = 0
     for query in ['nasdaq', 'ipo', 'fda', 'merger', 'pharma']:
-        news_items = fetch_news(query, NEWS_API_KEYS[api_key_index])
-        for item in news_items:
+        news = fetch_news(query, NEWS_API_KEYS[api_index])
+        for item in news:
             date = item['date']
-            uniq = item['title'] + item['link']
-            if uniq not in all_keys:
+            key = item['title'] + item['link']
+            if key not in all_keys:
                 data.setdefault(date, []).append(item)
-                all_keys.add(uniq)
-        api_key_index = (api_key_index + 1) % len(NEWS_API_KEYS)
+                all_keys.add(key)
+        api_index = (api_index + 1) % len(NEWS_API_KEYS)
 
-    for fetcher in [crawl_yahoo, crawl_prnewswire]:
-        for item in fetcher():
+    for fn in [crawl_yahoo, crawl_prnewswire]:
+        for item in fn():
             date = item['date']
-            uniq = item['title'] + item['link']
-            if uniq not in all_keys:
+            key = item['title'] + item['link']
+            if key not in all_keys:
                 data.setdefault(date, []).append(item)
-                all_keys.add(uniq)
+                all_keys.add(key)
 
     for date in data:
         data[date].sort(key=lambda x: x.get("timestamp", ""), reverse=True)
@@ -267,7 +264,10 @@ def get_data():
             for date in raw_news:
                 for n in raw_news[date]:
                     if n.get("symbol", "") == symbol:
-                        item['news'] = {"title": n['summary']}
+                        item['news'] = {
+                            "title": n['title'],
+                            "summary": n['summary']
+                        }
                         break
                 if 'news' in item:
                     break
